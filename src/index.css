@@ -2,39 +2,63 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
+/* Mecanografia Design System - Educational Platform Theme
+   Professional, clean, and efficient design for educational document creation
+   All colors MUST be HSL.
 */
 
 @layer base {
   :root {
+    /* Educational Blue Palette */
     --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --foreground: 213 27% 14%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 213 27% 14%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 213 27% 14%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    /* Educational Blue Primary */
+    --primary: 213 94% 50%;
+    --primary-foreground: 0 0% 100%;
+    --primary-hover: 213 94% 45%;
+    --primary-light: 213 100% 96%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    /* Academic Green Secondary */
+    --secondary: 142 71% 45%;
+    --secondary-foreground: 0 0% 100%;
+    --secondary-hover: 142 71% 40%;
+    --secondary-light: 142 76% 95%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    /* Neutral Academic Tones */
+    --muted: 210 20% 98%;
+    --muted-foreground: 213 19% 50%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 210 40% 96%;
+    --accent-foreground: 213 27% 14%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    /* Educational Warning & Error */
+    --warning: 45 93% 58%;
+    --warning-foreground: 0 0% 100%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    /* Interface Elements */
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 213 94% 50%;
+
+    /* Educational Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(213 94% 50%), hsl(213 94% 60%));
+    --gradient-secondary: linear-gradient(135deg, hsl(142 71% 45%), hsl(142 71% 55%));
+    --gradient-hero: linear-gradient(135deg, hsl(213 94% 50%), hsl(142 71% 45%));
+    --gradient-subtle: linear-gradient(180deg, hsl(0 0% 100%), hsl(213 100% 99%));
+
+    /* Professional Shadows */
+    --shadow-elegant: 0 4px 20px -8px hsl(213 94% 50% / 0.15);
+    --shadow-card: 0 2px 12px -4px hsl(213 27% 14% / 0.08);
+    --shadow-focus: 0 0 0 3px hsl(213 94% 50% / 0.12);
 
     --radius: 0.5rem;
 
@@ -56,33 +80,48 @@ All colors MUST be HSL.
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    --background: 213 27% 8%;
+    --foreground: 213 25% 95%;
 
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
+    --card: 213 27% 10%;
+    --card-foreground: 213 25% 95%;
 
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 213 27% 10%;
+    --popover-foreground: 213 25% 95%;
 
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    --primary: 213 94% 55%;
+    --primary-foreground: 0 0% 100%;
+    --primary-hover: 213 94% 60%;
+    --primary-light: 213 94% 15%;
 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 142 71% 50%;
+    --secondary-foreground: 0 0% 100%;
+    --secondary-hover: 142 71% 55%;
+    --secondary-light: 142 71% 15%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 213 27% 15%;
+    --muted-foreground: 213 19% 65%;
 
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 213 27% 15%;
+    --accent-foreground: 213 25% 95%;
 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --warning: 45 93% 58%;
+    --warning-foreground: 0 0% 100%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
+    --border: 213 27% 20%;
+    --input: 213 27% 20%;
+    --ring: 213 94% 55%;
+
+    --gradient-primary: linear-gradient(135deg, hsl(213 94% 55%), hsl(213 94% 65%));
+    --gradient-secondary: linear-gradient(135deg, hsl(142 71% 50%), hsl(142 71% 60%));
+    --gradient-hero: linear-gradient(135deg, hsl(213 94% 55%), hsl(142 71% 50%));
+    --gradient-subtle: linear-gradient(180deg, hsl(213 27% 8%), hsl(213 27% 12%));
+
+    --shadow-elegant: 0 4px 20px -8px hsl(0 0% 0% / 0.3);
+    --shadow-card: 0 2px 12px -4px hsl(0 0% 0% / 0.2);
+    --shadow-focus: 0 0 0 3px hsl(213 94% 55% / 0.12);
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
     --sidebar-primary: 224.3 76.3% 48%;
@@ -100,6 +139,24 @@ All colors MUST be HSL.
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-inter antialiased;
+  }
+
+  /* Ensure Inter font is applied globally */
+  * {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+
+  /* Educational specific utilities */
+  .educational-gradient {
+    background: var(--gradient-hero);
+  }
+
+  .shadow-educational {
+    box-shadow: var(--shadow-elegant);
+  }
+
+  .transition-educational {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 }

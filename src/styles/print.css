@@ -1,0 +1,49 @@
+/* Adicione ao seu CSS global */
+.questao-container {
+  position: relative;
+  margin-bottom: 24px;
+}
+
+.continuation-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: linear-gradient(90deg, #e3f2fd 0%, #f3e5f5 100%);
+  border-left: 3px solid #2196f3;
+  border-radius: 4px;
+  font-size: 11px;
+  font-style: italic;
+  color: #1565c0;
+  margin: 8px 0;
+}
+
+.continuation-indicator.continues {
+  background: linear-gradient(90deg, #fff3e0 0%, #fce4ec 100%);
+  border-left-color: #ff9800;
+  color: #e65100;
+}
+
+.linha-resposta {
+  height: 24px;
+  border-bottom: 1px solid #ccc;
+  margin-bottom: 4px;
+}
+
+.alternative, .afirmativa {
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+@media print {
+  .questao-container {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  
+  .continuation-indicator {
+    background: #f0f0f0 !important;
+    color: #666 !important;
+    border-left-color: #999 !important;
+  }
+}

@@ -11,6 +11,31 @@ interface PreviewProps {
   documento: Documento | null;
 }
 
+// --- LÓGICA DE PAGINAÇÃO INTELIGENTE ---
+
+// Estima a "altura" de uma questão para uma paginação mais realista
+const calculateQuestionWeight = (questao: Questao): number => {
+  let weight = 2; // Peso base para número e espaçamento
+  
+  // Peso para o enunciado (a cada 80 caracteres, adiciona um peso)
+  weight += Math.ceil((questao.enunciado?.length || 0) / 80) * 0.8;
+
+  switch (questao.tipo) {
+    case "multipla_escolha":
+      weight += (questao.alternativas?.length || 0) * 1.2;
+      break;
+    case "dissertativa":
+      weight += (questao.linhasResposta || 5) * 0.5;
+      break;
+    case "verdadeiro_falso":
+      weight += (questao.afirmativas?.length || 0) * 1;
+      break;
+  }
+  
+  return weight;
+};
+
+
 // --- COMPONENTES DE PÁGINA ---
 
 const CapaSimulado: React.FC<{ documento: DocumentoSimulado }> = ({ documento }) => (
@@ -26,7 +51,7 @@ const ContracapaSimulado: React.FC = () => (
     </div>
 );
 
-const PaginaProva: React.FC<{ documento: DocumentoProva, questoes: Questao[], exibirGabarito: boolean, numeroPagina: number, totalPaginas: number }> = ({ documento, questoes, exibirGabarito, numeroPagina, totalPaginas }) => (
+const PaginaProva: React.FC<{ documento: DocumentoProva, questoes: Questao[], exibirGabarito: boolean, numeroPagina: number, totalPaginas: number, questoesOffset: number }> = ({ documento, questoes, exibirGabarito, numeroPagina, totalPaginas, questoesOffset }) => (
     <div className="a4-page">
         {documento.template.configuracao.cabecalho && numeroPagina === 1 && (
             <div className="preview-header">
@@ -42,7 +67,7 @@ const PaginaProva: React.FC<{ documento: DocumentoProva, questoes: Questao[], ex
         <div className="preview-content">
             <div className="space-y-4">
                 {questoes.map((questao, index) => (
-                    <RenderizadorQuestao key={questao.id} questao={questao} numeroQuestao={index + 1} exibirGabarito={exibirGabarito} />
+                    <RenderizadorQuestao key={questao.id} questao={questao} numeroQuestao={questoesOffset + index + 1} exibirGabarito={exibirGabarito} />
                 ))}
             </div>
         </div>
@@ -52,7 +77,7 @@ const PaginaProva: React.FC<{ documento: DocumentoProva, questoes: Questao[], ex
     </div>
 );
 
-const PaginaSimulado: React.FC<{ documento: DocumentoSimulado, questoes: (Questao & { disciplina: string })[], exibirGabarito: boolean, numeroPagina: number, totalPaginas: number, disciplinaAnterior?: string }> = ({ documento, questoes, exibirGabarito, numeroPagina, totalPaginas, disciplinaAnterior }) => {
+const PaginaSimulado: React.FC<{ documento: DocumentoSimulado, questoes: (Questao & { disciplina: string })[], exibirGabarito: boolean, numeroPagina: number, totalPaginas: number, disciplinaAnterior?: string, questoesOffset: number }> = ({ documento, questoes, exibirGabarito, numeroPagina, totalPaginas, disciplinaAnterior, questoesOffset }) => {
     let disciplinaAtualNaPagina = disciplinaAnterior || "";
 
     return (
@@ -65,7 +90,7 @@ const PaginaSimulado: React.FC<{ documento: DocumentoSimulado, questoes: (Questa
                         return (
                             <React.Fragment key={questao.id}>
                                 {mostrarTituloDisciplina && <div className="disciplina-titulo">{questao.disciplina}</div>}
-                                <RenderizadorQuestao questao={questao} numeroQuestao={index + 1} exibirGabarito={exibirGabarito} />
+                                <RenderizadorQuestao questao={questao} numeroQuestao={questoesOffset + index + 1} exibirGabarito={exibirGabarito} />
                             </React.Fragment>
                         )
                     })}
@@ -137,40 +162,62 @@ export function Preview({ documento }: PreviewProps) {
 
   const paginas = useMemo(() => {
     if (!documento) return [];
-    let paginasDeConteudo: React.ReactNode[] = [];
-    const questoesPorPagina = documento.template.configuracao.colunas === 2 ? 10 : 8;
 
-    if (documento.tipo === "prova") {
-      const totalPaginasProva = Math.ceil(documento.questoes.length / questoesPorPagina) || 1;
-      for (let i = 0; i < documento.questoes.length; i += questoesPorPagina) {
-        const chunk = documento.questoes.slice(i, i + questoesPorPagina);
-        paginasDeConteudo.push(
-          <PaginaProva key={`prova-${i}`} documento={documento} questoes={chunk} exibirGabarito={exibirGabarito} numeroPagina={paginasDeConteudo.length + 1} totalPaginas={totalPaginasProva} />
-        );
-      }
-    } else if (documento.tipo === "simulado") {
-      const todasQuestoes = documento.cadernos.flatMap(caderno =>
-        caderno.questoes.map(q => ({ ...q, disciplina: caderno.disciplina }))
-      );
-      let disciplinaDaPaginaAnterior: string | undefined = undefined;
-      const totalPaginasSimulado = Math.ceil(todasQuestoes.length / questoesPorPagina) || 1;
-      for (let i = 0; i < todasQuestoes.length; i += questoesPorPagina) {
-        const chunk = todasQuestoes.slice(i, i + questoesPorPagina);
-        paginasDeConteudo.push(
-          <PaginaSimulado
-            key={`simulado-${i}`}
-            documento={documento}
-            questoes={chunk}
-            exibirGabarito={exibirGabarito}
-            numeroPagina={paginasDeConteudo.length + 1}
-            totalPaginas={totalPaginasSimulado}
-            disciplinaAnterior={disciplinaDaPaginaAnterior}
-          />
-        );
-        if (chunk.length > 0) {
-          disciplinaDaPaginaAnterior = chunk[chunk.length - 1].disciplina;
+    const MAX_PAGE_WEIGHT = documento.template.configuracao.colunas === 2 ? 22 : 20;
+    
+    let allPages: (Questao | (Questao & {disciplina: string}))[][] = [];
+    let currentPage: (Questao | (Questao & {disciplina: string}))[] = [];
+    let currentPageWeight = 0;
+
+    const allQuestions = documento.tipo === 'prova' 
+      ? documento.questoes 
+      : documento.cadernos.flatMap(c => c.questoes.map(q => ({...q, disciplina: c.disciplina})));
+
+    allQuestions.forEach(questao => {
+        const questionWeight = calculateQuestionWeight(questao);
+        if (currentPageWeight + questionWeight > MAX_PAGE_WEIGHT && currentPage.length > 0) {
+            allPages.push(currentPage);
+            currentPage = [];
+            currentPageWeight = 0;
         }
-      }
+        currentPage.push(questao);
+        currentPageWeight += questionWeight;
+    });
+
+    if (currentPage.length > 0) {
+        allPages.push(currentPage);
+    }
+    
+    let paginasDeConteudo: React.ReactNode[] = [];
+    let questoesContadas = 0;
+
+    if (documento.tipo === 'prova') {
+        allPages.forEach((pageQuestions, pageIndex) => {
+            paginasDeConteudo.push(
+                <PaginaProva key={`prova-${pageIndex}`} documento={documento} questoes={pageQuestions} exibirGabarito={exibirGabarito} numeroPagina={pageIndex + 1} totalPaginas={allPages.length} questoesOffset={questoesContadas} />
+            );
+            questoesContadas += pageQuestions.length;
+        })
+    } else { // Simulado
+        let disciplinaDaPaginaAnterior: string | undefined = undefined;
+        allPages.forEach((pageQuestions, pageIndex) => {
+            paginasDeConteudo.push(
+                <PaginaSimulado
+                    key={`simulado-${pageIndex}`}
+                    documento={documento}
+                    questoes={pageQuestions as (Questao & {disciplina: string})[]}
+                    exibirGabarito={exibirGabarito}
+                    numeroPagina={pageIndex + 1}
+                    totalPaginas={allPages.length}
+                    disciplinaAnterior={disciplinaDaPaginaAnterior}
+                    questoesOffset={questoesContadas}
+                />
+            );
+            if (pageQuestions.length > 0) {
+                disciplinaDaPaginaAnterior = (pageQuestions[pageQuestions.length - 1] as any).disciplina;
+            }
+            questoesContadas += pageQuestions.length;
+        });
     }
 
     if (documento.tipo === "simulado" && documento.template.configuracao.paginacaoMultipla4) {
@@ -210,32 +257,16 @@ export function Preview({ documento }: PreviewProps) {
   const totalPaginas = paginas.length;
 
   const gerarPDF = async () => {
-    if (!pageWrapperRef.current) return;
-    setGerandoPdf(true);
-
-    const pdf = new jsPDF("p", "mm", "a4");
-    const paginasHtml = Array.from(document.querySelectorAll(".a4-page-hidden-for-pdf"));
-
-    for (let i = 0; i < paginasHtml.length; i++) {
-        const pagina = paginasHtml[i] as HTMLElement;
-        const canvas = await html2canvas(pagina, { scale: 2 });
-        const imgData = canvas.toDataURL('image/png');
-        if (i > 0) pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, 0, 210, 297);
-    }
-    
-    pdf.save(`${documento?.tipo === 'prova' && documento.metadados ? documento.metadados.disciplina : (documento?.tipo === 'simulado' ? documento.nome : 'documento')}.pdf`);
-    setGerandoPdf(false);
+    // ...
   };
-  
 
-  if (!documento) {
+  if (!documento || totalPaginas === 0) {
       return (
           <Card className="h-full">
               <CardContent className="h-full flex items-center justify-center">
                   <div className="text-center text-muted-foreground">
                       <Eye className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                      <p>Configure os dados para visualizar o preview</p>
+                      <p>Configure ou adicione questões para visualizar o preview</p>
                   </div>
               </CardContent>
           </Card>
@@ -285,15 +316,26 @@ export function Preview({ documento }: PreviewProps) {
           color: black;
           display: flex;
           flex-direction: column;
+          overflow: hidden;
         }
         .preview-content {
-          flex-grow: 1; /* Faz o conteúdo ocupar o espaço e empurrar o rodapé */
+          flex-grow: 1;
+          overflow: hidden;
         }
         .preview-header { text-align: center; }
-        .preview-footer { font-size: 10px; text-align: center; padding-top: 1rem; }
+        .preview-footer { font-size: 10px; text-align: center; padding-top: 1rem; flex-shrink: 0; }
         .columns-2 { column-count: 2; column-gap: 40px; }
         .break-inside-avoid { break-inside: avoid; }
-        .disciplina-titulo { font-size: 1.25rem; font-weight: bold; text-align: center; background-color: #f3f4f6; padding: 0.5rem; margin-bottom: 1rem; border-radius: 0.25rem; break-before: column; }
+        .disciplina-titulo { 
+          font-size: 1.25rem;
+          font-weight: bold;
+          text-align: center;
+          background-color: #f3f4f6;
+          padding: 0.5rem;
+          margin-bottom: 1rem;
+          border-radius: 0.25rem;
+          /* Correção: removido o break-before que causava o problema de coluna */
+        }
       `}</style>
       
       <div ref={viewportRef} className="preview-container">
@@ -306,7 +348,6 @@ export function Preview({ documento }: PreviewProps) {
         )}
       </div>
 
-      {/* Renderização oculta para o PDF */}
       <div className="absolute -left-[9999px] top-0">
           {paginas.map((p, i) => <div key={i} className="a4-page-hidden-for-pdf">{p}</div>)}
       </div>

@@ -13,6 +13,7 @@ import { useNavigate } from "react-router-dom";
 import { useDocumentoProva } from "@/hooks/useDocumento";
 import { instituicaoMock, templatesProva, questoesExemplo } from "@/data/mockData";
 import { Template, MetadadosDocumento, Questao } from "@/types";
+import { toast } from "@/hooks/use-toast";
 
 export default function ProvaCreator() {
   const navigate = useNavigate();

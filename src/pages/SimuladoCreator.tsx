@@ -14,6 +14,7 @@ import { useNavigate } from "react-router-dom";
 import { useDocumentoSimulado } from "@/hooks/useDocumento";
 import { instituicaoMock, templatesSimulado, questoesExemplo } from "@/data/mockData";
 import { Template } from "@/types";
+import { toast } from "@/hooks/use-toast";
 
 export default function SimuladoCreator() {
   const navigate = useNavigate();

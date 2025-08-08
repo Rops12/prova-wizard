@@ -1,20 +1,18 @@
-// src/components/Preview.tsx (Corrigido)
+// src/components/Preview.tsx (Nova Abordagem com srcDoc)
 
-import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Documento } from "@/types";
 import { Download, Eye, EyeOff, RefreshCw, Loader2 } from "lucide-react";
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import ReactDOMServer from "react-dom/server";
 import { PagedPreview } from "./PagedPreview";
 
-// URLs dos arquivos de estilo
+// URLs dos arquivos de estilo e script (o Vite garante que os caminhos estejam corretos)
 import indexCssUrl from '@/index.css?url';
 import pagedCssUrl from '@/styles/paged.css?url';
-
-// CORREÇÃO: Usar a URL da CDN para o script do paged.js
-const pagedjsPolyfillUrl = 'https://unpkg.com/pagedjs@0.4.3/dist/paged.polyfill.js';
+const pagedjsPolyfillUrl = '/paged.polyfill.js'; // Mantemos a referência ao script na pasta /public
 
 // Declaração para TypeScript reconhecer a biblioteca na window do iframe
 declare global {
@@ -35,12 +33,12 @@ export function Preview({ documento }: PreviewProps) {
   const [exibirGabarito, setExibirGabarito] = useState(false);
   const [isRendering, setIsRendering] = useState(true);
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const [renderKey, setRenderKey] = useState(0); // Usado para forçar a recriação do iframe
 
-  // Memoiza o conteúdo HTML a ser renderizado para evitar re-renderizações desnecessárias.
-  const documentoHtml = React.useMemo(() => {
+  // Gera o HTML do conteúdo da prova/simulado
+  const documentoHtmlString = useMemo(() => {
     if (!documento) return "";
-    return ReactDOMServer.renderToString(
+    // Usamos renderToStaticMarkup para um HTML mais limpo, sem atributos extras do React
+    return ReactDOMServer.renderToStaticMarkup(
       <PagedPreview documento={documento} exibirGabarito={exibirGabarito} />
     );
   }, [documento, exibirGabarito]);
@@ -50,73 +48,77 @@ export function Preview({ documento }: PreviewProps) {
     (documento.tipo === 'simulado' && documento.cadernos.some(c => c.questoes.length > 0))
   );
 
-  // Efeito para configurar e renderizar o conteúdo no iframe
-  useEffect(() => {
-    const iframe = iframeRef.current;
-    if (!iframe) return;
+  // Gera o documento HTML completo para o srcDoc do iframe
+  const iframeSrcDoc = useMemo(() => {
+    // Escapa o HTML para que possa ser injetado dentro de um script JavaScript
+    const escapedHtml = documentoHtmlString.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$/g, '\\$');
+    
+    return `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="UTF-8">
+          <link rel="preconnect" href="https://fonts.googleapis.com">
+          <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+          <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+          <link rel="stylesheet" href="${indexCssUrl}">
+          <link rel="stylesheet" href="${pagedCssUrl}">
+          <script src="${pagedjsPolyfillUrl}"></script>
+        </head>
+        <body>
+          <div id="paged-content-source">${documentoHtmlString}</div>
+          <div id="paged-preview-area"></div>
+          
+          <script type="text/javascript">
+            // Este script é executado dentro do iframe assim que ele é carregado
+            document.addEventListener('DOMContentLoaded', function() {
+              if (window.Paged) {
+                const content = document.getElementById('paged-content-source').innerHTML;
+                const previewArea = document.getElementById('paged-preview-area');
+                
+                const paged = new window.Paged.Previewer();
+                
+                // Informa o componente pai que a renderização terminou
+                paged.preview(content, [], previewArea).then(() => {
+                  window.parent.postMessage('rendering-complete', '*');
+                }).catch(error => {
+                  console.error("Erro no Paged.js:", error);
+                  window.parent.postMessage('rendering-error', '*');
+                });
 
-    setIsRendering(true);
-
-    const handleLoad = () => {
-      const doc = iframe.contentDocument;
-      const win = iframe.contentWindow;
-      if (!doc || !win) return;
-
-      // Monta o <head> do iframe
-      doc.head.innerHTML = `
-        <meta charset="UTF-8">
-        <link rel="preconnect" href="https://fonts.googleapis.com">
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-        <link rel="stylesheet" href="${indexCssUrl}">
-        <link rel="stylesheet" href="${pagedCssUrl}">
-      `;
-      
-      // Cria o container do corpo
-      doc.body.innerHTML = '<div id="paged-container"></div>';
-      const container = doc.getElementById('paged-container')!;
-
-      // Se não há documento, não faz mais nada.
-      if (!documentoHtml) {
-        setIsRendering(false);
-        return;
-      }
-      
-      // Carrega o script do paged.js a partir da CDN
-      const script = doc.createElement('script');
-      script.src = pagedjsPolyfillUrl;
-      script.onload = () => {
-        if (win.Paged) {
-          const paged = new win.Paged.Previewer();
-          paged.preview(documentoHtml, [], container)
-            .then(() => setIsRendering(false))
-            .catch(error => {
-              console.error("Erro ao renderizar com Paged.js:", error);
-              // Fallback: mostra o conteúdo sem paginação em caso de erro
-              container.innerHTML = documentoHtml; 
-              setIsRendering(false);
+              } else {
+                 console.error("Paged.js não foi carregado a tempo.");
+                 window.parent.postMessage('rendering-error', '*');
+              }
             });
-        }
-      };
-      doc.head.appendChild(script);
+          </script>
+        </body>
+      </html>
+    `;
+  }, [documentoHtmlString]);
+
+  // Efeito para comunicar com o iframe e controlar o estado de carregamento
+  useEffect(() => {
+    setIsRendering(true);
+    
+    const handleMessage = (event: MessageEvent) => {
+      if (event.source !== iframeRef.current?.contentWindow) return;
+      
+      if (event.data === 'rendering-complete' || event.data === 'rendering-error') {
+        setIsRendering(false);
+      }
     };
 
-    iframe.addEventListener('load', handleLoad);
-    iframe.src = 'about:blank'; // Dispara o evento 'load'
-
+    window.addEventListener('message', handleMessage);
+    
     return () => {
-      iframe.removeEventListener('load', handleLoad);
+      window.removeEventListener('message', handleMessage);
     };
-  }, [documentoHtml, renderKey]); // Re-executa quando o HTML ou a chave de renderização mudam
+  }, [iframeSrcDoc]); // Re-executa quando o conteúdo do iframe muda
 
-  // Função para gerar o PDF
   const gerarPDF = () => {
-    if (iframeRef.current?.contentWindow) {
-      iframeRef.current.contentWindow.print();
-    }
+    iframeRef.current?.contentWindow?.print();
   };
-
-  const forceRerender = () => setRenderKey(prev => prev + 1);
 
   return (
     <Card className="h-full flex flex-col">
@@ -128,7 +130,7 @@ export function Preview({ documento }: PreviewProps) {
               <Button 
                 variant="ghost" 
                 size="sm" 
-                onClick={forceRerender}
+                onClick={() => setIsRendering(true)} // Apenas reinicia o estado de loading
                 disabled={isRendering}
                 className="text-xs"
               >
@@ -179,13 +181,16 @@ export function Preview({ documento }: PreviewProps) {
           </div>
         )}
         
-        <iframe
-          ref={iframeRef}
-          title="Document Preview"
-          className="w-full h-full border-0"
-          style={{ visibility: temQuestoes ? 'visible' : 'hidden' }}
-          key={renderKey} // A chave força a recriação do iframe
-        />
+        {temQuestoes && (
+            <iframe
+                ref={iframeRef}
+                title="Document Preview"
+                className="w-full h-full border-0"
+                srcDoc={iframeSrcDoc}
+                // Usamos on-load para ocultar o spinner caso a comunicação via postMessage falhe
+                onLoad={() => setIsRendering(false)} 
+            />
+        )}
       </div>
     </Card>
   );

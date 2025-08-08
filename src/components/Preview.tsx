@@ -1,4 +1,4 @@
-// src/components/Preview.tsx (Solução Final e Definitiva)
+// src/components/Preview.tsx (Solução com abordagem padrão do Paged.js)
 
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,7 @@ import React, { useState, useEffect, useRef, useMemo } from "react";
 import ReactDOMServer from "react-dom/server";
 import { PagedPreview } from "./PagedPreview";
 
-// Importamos o CONTEÚDO dos ficheiros como texto usando `?raw`
+// Importamos o CONTEÚDO dos ficheiros como texto
 import indexCssString from '@/index.css?raw';
 import pagedCssString from '@/styles/paged.css?raw';
 import pagedScriptString from '@/lib/paged.polyfill.js?raw';
@@ -39,6 +39,7 @@ export function Preview({ documento }: PreviewProps) {
         return;
     }
     
+    // Constrói o HTML 100% autónomo
     const fullHtml = `
       <!DOCTYPE html>
       <html>
@@ -53,18 +54,10 @@ export function Preview({ documento }: PreviewProps) {
           </style>
           <style>
             ${pagedCssString}
-            .visually-hidden {
-              position: absolute;
-              overflow: hidden;
-              clip: rect(0 0 0 0);
-              height: 1px; width: 1px;
-              margin: -1px; padding: 0; border: 0;
-            }
           </style>
         </head>
         <body>
-          <div id="paged-content-source" class="visually-hidden">${documentoHtmlString}</div>
-          <div id="paged-preview-area"></div>
+          ${documentoHtmlString}
           
           <script type="text/javascript">
             ${pagedScriptString}
@@ -73,14 +66,12 @@ export function Preview({ documento }: PreviewProps) {
           <script type="text/javascript">
             document.addEventListener('DOMContentLoaded', function() {
               if (window.Paged) {
-                // --- CORREÇÃO CRÍTICA ---
-                // Passamos o próprio elemento do DOM em vez do seu innerHTML
-                const contentElement = document.getElementById('paged-content-source');
-                const previewArea = document.getElementById('paged-preview-area');
-                new window.Paged.Previewer().preview(contentElement, [], previewArea);
+                // --- MUDANÇA CRÍTICA ---
+                // Chamamos .preview() sem argumentos para processar o body inteiro
+                new window.Paged.Previewer().preview();
               } else {
                  console.error("Paged.js falhou ao inicializar.");
-                 document.getElementById('paged-preview-area').innerHTML = 'Ocorreu um erro crítico ao carregar a biblioteca de paginação.';
+                 document.body.innerHTML = 'Ocorreu um erro crítico ao carregar a biblioteca de paginação.';
               }
             });
           </script>

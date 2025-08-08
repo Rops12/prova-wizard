@@ -4,8 +4,10 @@ class PagedPolyfill {
         this.previewer = new Paged.Previewer();
     }
 
-    render(content) {
-        this.previewer.preview(content, ["/paged.css"], document.querySelector("#paged-preview-container"));
+    // A função agora recebe o 'container' como um argumento
+    render(content, container) {
+        // O CSS será carregado diretamente no iframe, então podemos deixar o array de estilos vazio
+        this.previewer.preview(content, ["/paged.css"], container);
     }
 }
 

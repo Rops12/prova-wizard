@@ -1,0 +1,25 @@
+/* public/paged.css */
+@page {
+    size: A4;
+    margin: 20mm;
+}
+
+.pagedjs_page {
+    --pagedjs-margin-top: 20mm;
+    --pagedjs-margin-right: 20mm;
+    --pagedjs-margin-bottom: 20mm;
+    --pagedjs-margin-left: 20mm;
+}
+
+.questao-container {
+    break-inside: avoid;
+}
+
+.disciplina-titulo {
+    break-before: page;
+}
+
+.columns-2 {
+    column-count: 2;
+    column-gap: 15mm;
+}

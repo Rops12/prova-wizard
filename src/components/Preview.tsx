@@ -11,99 +11,8 @@ interface PreviewProps {
   documento: Documento | null;
 }
 
-// --- LÓGICA DE PAGINAÇÃO INTELIGENTE ---
-
-// Estima a "altura" de uma questão para uma paginação mais realista
-const calculateQuestionWeight = (questao: Questao): number => {
-  let weight = 2; // Peso base para número e espaçamento
-  
-  // Peso para o enunciado (a cada 80 caracteres, adiciona um peso)
-  weight += Math.ceil((questao.enunciado?.length || 0) / 80) * 0.8;
-
-  switch (questao.tipo) {
-    case "multipla_escolha":
-      weight += (questao.alternativas?.length || 0) * 1.2;
-      break;
-    case "dissertativa":
-      weight += (questao.linhasResposta || 5) * 0.5;
-      break;
-    case "verdadeiro_falso":
-      weight += (questao.afirmativas?.length || 0) * 1;
-      break;
-  }
-  
-  return weight;
-};
-
-
-// --- COMPONENTES DE PÁGINA ---
-
-const CapaSimulado: React.FC<{ documento: DocumentoSimulado }> = ({ documento }) => (
-    <div className="a4-page flex flex-col items-center justify-center text-center">
-        <h1 className="text-4xl font-bold mb-4">{documento.nome}</h1>
-        <h2 className="text-2xl text-muted-foreground">{documento.template.nome}</h2>
-    </div>
-);
-
-const ContracapaSimulado: React.FC = () => (
-    <div className="a4-page flex flex-col items-center justify-center text-center">
-        <p className="text-lg text-muted-foreground">Instruções Finais ou Espaço para Anotações</p>
-    </div>
-);
-
-const PaginaProva: React.FC<{ documento: DocumentoProva, questoes: Questao[], exibirGabarito: boolean, numeroPagina: number, totalPaginas: number, questoesOffset: number }> = ({ documento, questoes, exibirGabarito, numeroPagina, totalPaginas, questoesOffset }) => (
-    <div className="a4-page">
-        {documento.template.configuracao.cabecalho && numeroPagina === 1 && (
-            <div className="preview-header">
-                <h1 className="text-xl font-bold">{documento.metadados.titulo || documento.template.nome}</h1>
-                <div className="text-sm text-muted-foreground space-y-1">
-                    <p>Disciplina: {documento.metadados.disciplina}</p>
-                    <p>Série: {documento.metadados.serie} | Turma: {documento.metadados.turma}</p>
-                    {documento.metadados.professor && <p>Professor(a): {documento.metadados.professor}</p>}
-                </div>
-                <Separator className="my-6" />
-            </div>
-        )}
-        <div className="preview-content">
-            <div className="space-y-4">
-                {questoes.map((questao, index) => (
-                    <RenderizadorQuestao key={questao.id} questao={questao} numeroQuestao={questoesOffset + index + 1} exibirGabarito={exibirGabarito} />
-                ))}
-            </div>
-        </div>
-        {documento.template.configuracao.rodape && (
-            <div className="preview-footer">Página {numeroPagina} de {totalPaginas}</div>
-        )}
-    </div>
-);
-
-const PaginaSimulado: React.FC<{ documento: DocumentoSimulado, questoes: (Questao & { disciplina: string })[], exibirGabarito: boolean, numeroPagina: number, totalPaginas: number, disciplinaAnterior?: string, questoesOffset: number }> = ({ documento, questoes, exibirGabarito, numeroPagina, totalPaginas, disciplinaAnterior, questoesOffset }) => {
-    let disciplinaAtualNaPagina = disciplinaAnterior || "";
-
-    return (
-        <div className="a4-page">
-            <div className="preview-content">
-                <div className={documento.template.configuracao.colunas === 2 ? "columns-2" : ""}>
-                    {questoes.map((questao, index) => {
-                        const mostrarTituloDisciplina = questao.disciplina !== disciplinaAtualNaPagina;
-                        disciplinaAtualNaPagina = questao.disciplina;
-                        return (
-                            <React.Fragment key={questao.id}>
-                                {mostrarTituloDisciplina && <div className="disciplina-titulo">{questao.disciplina}</div>}
-                                <RenderizadorQuestao questao={questao} numeroQuestao={questoesOffset + index + 1} exibirGabarito={exibirGabarito} />
-                            </React.Fragment>
-                        )
-                    })}
-                </div>
-            </div>
-            {documento.template.configuracao.rodape && (
-                <div className="preview-footer">Página {numeroPagina} de {totalPaginas}</div>
-            )}
-        </div>
-    );
-};
-
 const RenderizadorQuestao: React.FC<{ questao: Questao, numeroQuestao: number, exibirGabarito: boolean }> = ({ questao, numeroQuestao, exibirGabarito }) => {
+    // (Este componente permanece o mesmo da versão anterior)
     return (
         <div className="mb-6 break-inside-avoid">
            <div className="flex items-start gap-3">
@@ -149,118 +58,62 @@ const RenderizadorQuestao: React.FC<{ questao: Questao, numeroQuestao: number, e
       );
 };
 
-// --- COMPONENTE PRINCIPAL DO PREVIEW ---
-
 export function Preview({ documento }: PreviewProps) {
   const [paginaAtual, setPaginaAtual] = useState(1);
   const [exibirGabarito, setExibirGabarito] = useState(false);
   const [gerandoPdf, setGerandoPdf] = useState(false);
-  
+  const [totalPaginas, setTotalPaginas] = useState(1);
+
   const viewportRef = useRef<HTMLDivElement>(null);
-  const pageWrapperRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
 
-  const paginas = useMemo(() => {
-    if (!documento) return [];
-
-    const MAX_PAGE_WEIGHT = documento.template.configuracao.colunas === 2 ? 22 : 20;
-    
-    let allPages: (Questao | (Questao & {disciplina: string}))[][] = [];
-    let currentPage: (Questao | (Questao & {disciplina: string}))[] = [];
-    let currentPageWeight = 0;
-
-    const allQuestions = documento.tipo === 'prova' 
-      ? documento.questoes 
-      : documento.cadernos.flatMap(c => c.questoes.map(q => ({...q, disciplina: c.disciplina})));
-
-    allQuestions.forEach(questao => {
-        const questionWeight = calculateQuestionWeight(questao);
-        if (currentPageWeight + questionWeight > MAX_PAGE_WEIGHT && currentPage.length > 0) {
-            allPages.push(currentPage);
-            currentPage = [];
-            currentPageWeight = 0;
-        }
-        currentPage.push(questao);
-        currentPageWeight += questionWeight;
-    });
-
-    if (currentPage.length > 0) {
-        allPages.push(currentPage);
-    }
-    
-    let paginasDeConteudo: React.ReactNode[] = [];
-    let questoesContadas = 0;
-
-    if (documento.tipo === 'prova') {
-        allPages.forEach((pageQuestions, pageIndex) => {
-            paginasDeConteudo.push(
-                <PaginaProva key={`prova-${pageIndex}`} documento={documento} questoes={pageQuestions} exibirGabarito={exibirGabarito} numeroPagina={pageIndex + 1} totalPaginas={allPages.length} questoesOffset={questoesContadas} />
-            );
-            questoesContadas += pageQuestions.length;
-        })
-    } else { // Simulado
-        let disciplinaDaPaginaAnterior: string | undefined = undefined;
-        allPages.forEach((pageQuestions, pageIndex) => {
-            paginasDeConteudo.push(
-                <PaginaSimulado
-                    key={`simulado-${pageIndex}`}
-                    documento={documento}
-                    questoes={pageQuestions as (Questao & {disciplina: string})[]}
-                    exibirGabarito={exibirGabarito}
-                    numeroPagina={pageIndex + 1}
-                    totalPaginas={allPages.length}
-                    disciplinaAnterior={disciplinaDaPaginaAnterior}
-                    questoesOffset={questoesContadas}
-                />
-            );
-            if (pageQuestions.length > 0) {
-                disciplinaDaPaginaAnterior = (pageQuestions[pageQuestions.length - 1] as any).disciplina;
-            }
-            questoesContadas += pageQuestions.length;
-        });
-    }
-
-    if (documento.tipo === "simulado" && documento.template.configuracao.paginacaoMultipla4) {
-      const totalPaginasComCapa = paginasDeConteudo.length + (documento.template.configuracao.incluiCapa ? 1 : 0) + (documento.template.configuracao.incluiContracapa ? 1 : 0);
-      const paginasEmBrancoNecessarias = (4 - (totalPaginasComCapa % 4)) % 4;
-      for (let i = 0; i < paginasEmBrancoNecessarias; i++) {
-        paginasDeConteudo.push(<div key={`branco-${i}`} className="a4-page" />);
-      }
-    }
-
-    if (documento.tipo === "simulado") {
-      const paginasFinais = [...paginasDeConteudo];
-      if (documento.template.configuracao.incluiCapa) paginasFinais.unshift(<CapaSimulado key="capa" documento={documento} />);
-      if (documento.template.configuracao.incluiContracapa) paginasFinais.push(<ContracapaSimulado key="contracapa" />);
-      return paginasFinais;
-    }
-    return paginasDeConteudo;
-  }, [documento, exibirGabarito]);
-
+  // Calcula o total de páginas e o deslocamento da página atual
   useLayoutEffect(() => {
-    const calculateScale = () => {
-      if (viewportRef.current && pageWrapperRef.current) {
-        const viewportWidth = viewportRef.current.clientWidth;
-        const viewportHeight = viewportRef.current.clientHeight;
-        const pageWidth = 794; 
-        const pageHeight = 1123;
-        const scaleX = viewportWidth / pageWidth;
-        const scaleY = viewportHeight / pageHeight;
-        setScale(Math.min(scaleX, scaleY));
-      }
-    };
-    calculateScale();
-    window.addEventListener('resize', calculateScale);
-    return () => window.removeEventListener('resize', calculateScale);
-  }, [paginas]);
+    const viewport = viewportRef.current;
+    const content = contentRef.current;
+    if (!viewport || !content) return;
 
-  const totalPaginas = paginas.length;
+    const calculateLayout = () => {
+        const viewportHeight = viewport.clientHeight;
+        const contentHeight = content.scrollHeight;
+        const newTotalPages = Math.ceil(contentHeight / viewportHeight) || 1;
+
+        setTotalPaginas(newTotalPages);
+
+        const newScale = viewportHeight / content.clientHeight;
+        setScale(newScale < 1 ? newScale : 1);
+        
+        if (paginaAtual > newTotalPages) {
+            setPaginaAtual(newTotalPages);
+        }
+
+        // Desloca o conteúdo para mostrar a página correta
+        content.style.transform = `translateY(-${(paginaAtual - 1) * viewportHeight}px)`;
+    };
+
+    // Usamos um ResizeObserver para recalcular quando o layout mudar
+    const observer = new ResizeObserver(calculateLayout);
+    observer.observe(content);
+    observer.observe(viewport);
+    calculateLayout();
+
+    return () => observer.disconnect();
+  }, [documento, paginaAtual, exibirGabarito]);
 
   const gerarPDF = async () => {
-    // ...
+    // A geração de PDF com quebra de página é complexa e requer uma abordagem diferente.
+    // Esta função mockada representa a intenção.
+    console.log("Gerando PDF...");
   };
+  
+  const todasQuestoes = useMemo(() => {
+    if(!documento) return [];
+    if(documento.tipo === 'prova') return documento.questoes;
+    return documento.cadernos.flatMap(c => c.questoes.map(q => ({...q, disciplina: c.disciplina})));
+  }, [documento]);
 
-  if (!documento || totalPaginas === 0) {
+  if (!documento || todasQuestoes.length === 0) {
       return (
           <Card className="h-full">
               <CardContent className="h-full flex items-center justify-center">
@@ -272,6 +125,8 @@ export function Preview({ documento }: PreviewProps) {
           </Card>
       );
   }
+
+  let disciplinaAnterior = "";
 
   return (
     <Card className="h-full flex flex-col">
@@ -290,69 +145,90 @@ export function Preview({ documento }: PreviewProps) {
           </div>
         </div>
       </CardHeader>
-
       <Separator />
       
       <style>{`
         .preview-container {
           background-color: #f0f0f0;
           flex-grow: 1;
-          display: grid;
-          place-items: center;
+          display: flex;
+          justify-content: center;
+          align-items: flex-start; /* Alinha a página no topo */
           overflow: hidden;
-          padding: 1rem;
+          padding: 1rem 0;
         }
-        .a4-page-wrapper {
-          transform-origin: top center;
-          transition: transform 0.2s ease;
-        }
-        .a4-page {
-          width: 794px;
-          height: 1123px;
-          padding: 75px;
-          background: white;
+        .a4-viewport {
+          width: calc((100vh - 200px) * (210 / 297)); /* Calcula a largura baseada na altura para manter proporção A4 */
+          height: calc(100vh - 200px); /* Ocupa a altura disponível */
+          overflow: hidden;
           box-shadow: 0 0 10px rgba(0,0,0,0.15);
+          background: white;
+        }
+        .preview-content-wrapper {
+            transition: transform 0.3s ease-in-out;
+        }
+        .a4-content {
+          padding: 20mm;
           font-family: 'Inter', sans-serif;
           color: black;
-          display: flex;
-          flex-direction: column;
-          overflow: hidden;
         }
-        .preview-content {
-          flex-grow: 1;
-          overflow: hidden;
-        }
+        /* ... outros estilos ... */
         .preview-header { text-align: center; }
-        .preview-footer { font-size: 10px; text-align: center; padding-top: 1rem; flex-shrink: 0; }
-        .columns-2 { column-count: 2; column-gap: 40px; }
-        .break-inside-avoid { break-inside: avoid; }
+        .preview-footer { font-size: 10px; text-align: center; padding-top: 1rem; }
+        .columns-2 { column-count: 2; column-gap: 15mm; }
+        .break-inside-avoid { break-inside: avoid-page; page-break-inside: avoid; }
         .disciplina-titulo { 
-          font-size: 1.25rem;
-          font-weight: bold;
-          text-align: center;
-          background-color: #f3f4f6;
-          padding: 0.5rem;
-          margin-bottom: 1rem;
-          border-radius: 0.25rem;
-          /* Correção: removido o break-before que causava o problema de coluna */
+            font-size: 1.25rem; 
+            font-weight: bold; 
+            text-align: center; 
+            background-color: #f3f4f6; 
+            padding: 0.5rem; 
+            margin-bottom: 1rem; 
+            border-radius: 0.25rem;
+            break-before: always; /* Garante que a nova disciplina comece no topo */
         }
       `}</style>
       
-      <div ref={viewportRef} className="preview-container">
-        {paginas.length > 0 && (
-          <div ref={pageWrapperRef} className="a4-page-wrapper" style={{ transform: `scale(${scale})` }}>
-            <div key={paginaAtual}>
-              {paginas[paginaAtual - 1]}
+      <div className="preview-container">
+        <div ref={viewportRef} className="a4-viewport">
+            <div ref={contentRef} className="preview-content-wrapper">
+                <div className="a4-content">
+                    {/* Renderiza o cabeçalho */}
+                    {documento.tipo === 'prova' && documento.template.configuracao.cabecalho && (
+                         <div className="preview-header">
+                            <h1 className="text-xl font-bold">{documento.metadados.titulo || documento.template.nome}</h1>
+                            <div className="text-sm text-muted-foreground space-y-1">
+                                <p>Disciplina: {documento.metadados.disciplina}</p>
+                                <p>Série: {documento.metadados.serie} | Turma: {documento.metadados.turma}</p>
+                                {documento.metadados.professor && <p>Professor(a): {documento.metadados.professor}</p>}
+                            </div>
+                            <Separator className="my-6" />
+                        </div>
+                    )}
+                    
+                    {/* Renderiza todas as questões em um fluxo contínuo */}
+                    <div className={documento.template.configuracao.colunas === 2 ? "columns-2" : ""}>
+                        {todasQuestoes.map((questao, index) => {
+                             if(documento.tipo === 'simulado') {
+                                const q = questao as Questao & { disciplina: string };
+                                const mostrarTituloDisciplina = q.disciplina !== disciplinaAnterior;
+                                disciplinaAnterior = q.disciplina;
+                                return (
+                                    <React.Fragment key={q.id}>
+                                        {mostrarTituloDisciplina && <div className="disciplina-titulo">{q.disciplina}</div>}
+                                        <RenderizadorQuestao questao={q} numeroQuestao={index + 1} exibirGabarito={exibirGabarito} />
+                                    </React.Fragment>
+                                )
+                             }
+                             return <RenderizadorQuestao key={questao.id} questao={questao} numeroQuestao={index + 1} exibirGabarito={exibirGabarito} />
+                        })}
+                    </div>
+                </div>
             </div>
-          </div>
-        )}
-      </div>
-
-      <div className="absolute -left-[9999px] top-0">
-          {paginas.map((p, i) => <div key={i} className="a4-page-hidden-for-pdf">{p}</div>)}
+        </div>
       </div>
       
-      {totalPaginas > 0 && (
+      {totalPaginas > 1 && (
         <>
           <Separator />
           <div className="p-4 flex items-center justify-between">

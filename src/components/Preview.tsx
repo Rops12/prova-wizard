@@ -1,4 +1,4 @@
-// src/components/Preview.tsx (Solução com abordagem padrão do Paged.js)
+// src/components/Preview.tsx (Solução Final Corrigida)
 
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -35,7 +35,9 @@ export function Preview({ documento }: PreviewProps) {
   );
 
   useEffect(() => {
-    if (!temQuestoes || !iframeRef.current) {
+    // --- MUDANÇA CRÍTICA ---
+    // Só executa se tivermos conteúdo e o iframe estiver pronto.
+    if (!documentoHtmlString || !iframeRef.current) {
         return;
     }
     
@@ -66,8 +68,6 @@ export function Preview({ documento }: PreviewProps) {
           <script type="text/javascript">
             document.addEventListener('DOMContentLoaded', function() {
               if (window.Paged) {
-                // --- MUDANÇA CRÍTICA ---
-                // Chamamos .preview() sem argumentos para processar o body inteiro
                 new window.Paged.Previewer().preview();
               } else {
                  console.error("Paged.js falhou ao inicializar.");
@@ -91,7 +91,7 @@ export function Preview({ documento }: PreviewProps) {
       }
     };
 
-  }, [documentoHtmlString, temQuestoes]);
+  }, [documentoHtmlString]); // A dependência agora é o HTML, garantindo que ele existe.
 
   const gerarPDF = () => {
     iframeRef.current?.contentWindow?.print();

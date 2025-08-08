@@ -2,14 +2,16 @@ import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Documento } from "@/types";
-import { Download, Eye, EyeOff } from "lucide-react";
+import { Download, Eye, EyeOff, LoaderCircle } from "lucide-react";
 import React, { useState, useEffect, useRef } from "react";
 import ReactDOMServer from "react-dom/server";
 import { PagedPreview } from "./PagedPreview";
+import { jsPDF } from "jspdf";
+import html2canvas from "html2canvas";
 
-// Importamos as URLs dos arquivos de estilo usando a sintaxe "?url" do Vite
-import indexCssUrl from '@/index.css?url'; 
-import pagedCssUrl from '/public/paged.css?url';
+// CORREÇÃO: Voltamos a usar "?url" para obter os caminhos dos arquivos CSS
+import indexCssUrl from '@/index.css?url';
+import pagedCssUrl from '@/styles/paged.css?url';
 
 // Declaração para que o TypeScript reconheça a biblioteca na window do iframe
 declare global {
@@ -29,6 +31,7 @@ export function Preview({ documento }: PreviewProps) {
   const [exibirGabarito, setExibirGabarito] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [isIframeReady, setIsIframeReady] = useState(false);
+  const [gerandoPdf, setGerandoPdf] = useState(false);
 
   // Efeito para configurar o iframe quando o componente é montado
   useEffect(() => {
@@ -39,7 +42,7 @@ export function Preview({ documento }: PreviewProps) {
       const doc = iframe.contentDocument;
       if (!doc) return;
 
-      // Prepara o HTML base dentro do iframe, agora com as URLs corretas dos CSS
+      // Prepara o HTML base dentro do iframe, usando <link> com as URLs corretas
       doc.open();
       doc.write(`
         <!DOCTYPE html>
@@ -52,8 +55,10 @@ export function Preview({ documento }: PreviewProps) {
             <link rel="stylesheet" href="${indexCssUrl}">
             <link rel="stylesheet" href="${pagedCssUrl}">
             <style>
-              body { background-color: #f3f4f6; padding: 1rem; }
-              #paged-content { background-color: white; }
+              body { margin: 0; background-color: #f3f4f6; }
+              .pagedjs_preview-content { overflow: visible !important; }
+              .pagedjs_pages { display: flex; flex-direction: column; align-items: center; padding: 1rem 0; }
+              .pagedjs_page { background: white; box-shadow: 0 0 10px rgba(0,0,0,0.1); margin: 0 0 1rem 0; }
             </style>
           </head>
           <body>
@@ -111,10 +116,56 @@ export function Preview({ documento }: PreviewProps) {
     }
   }, [documento, exibirGabarito, isIframeReady]);
 
-  const gerarPDF = () => {
-    if (iframeRef.current?.contentWindow) {
-      iframeRef.current.contentWindow.print();
+  // Função para gerar PDF diretamente
+  const gerarPDF = async () => {
+    const iframe = iframeRef.current;
+    if (!iframe?.contentDocument) return;
+
+    setGerandoPdf(true);
+
+    const pages = iframe.contentDocument.querySelectorAll<HTMLElement>('.pagedjs_page');
+    if (pages.length === 0) {
+        console.error("Nenhuma página renderizada encontrada para gerar o PDF.");
+        setGerandoPdf(false);
+        return;
     }
+
+    const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: "a4"
+    });
+
+    const A4_WIDTH_MM = 210;
+    const A4_HEIGHT_MM = 297;
+
+    for (let i = 0; i < pages.length; i++) {
+        const page = pages[i];
+
+        const originalShadow = page.style.boxShadow;
+        page.style.boxShadow = 'none';
+
+        const canvas = await html2canvas(page, {
+            scale: 2,
+            useCORS: true
+        });
+
+        page.style.boxShadow = originalShadow;
+
+        const imgData = canvas.toDataURL('image/png');
+
+        if (i > 0) {
+            pdf.addPage();
+        }
+
+        pdf.addImage(imgData, 'PNG', 0, 0, A4_WIDTH_MM, A4_HEIGHT_MM, undefined, 'FAST');
+    }
+
+    const nomeDoDocumento = documento?.tipo === 'prova' ? (documento.metadados.titulo || documento.template.nome) : documento?.nome;
+    const nomeArquivo = `${nomeDoDocumento || 'documento'}.pdf`;
+    pdf.save(nomeArquivo);
+
+    setGerandoPdf(false);
   };
 
   const todasQuestoes = React.useMemo(() => {
@@ -136,9 +187,13 @@ export function Preview({ documento }: PreviewProps) {
                 {exibirGabarito ? <EyeOff className="h-3 w-3 mr-1" /> : <Eye className="h-3 w-3 mr-1" />}
                 {exibirGabarito ? "Ocultar Gabarito" : "Mostrar Gabarito"}
               </Button>
-              <Button size="sm" onClick={gerarPDF} className="text-xs">
-                <Download className="h-3 w-3 mr-1" />
-                Gerar PDF
+              <Button size="sm" onClick={gerarPDF} disabled={gerandoPdf} className="text-xs w-28">
+                {gerandoPdf ? (
+                    <LoaderCircle className="h-3 w-3 animate-spin" />
+                ) : (
+                    <Download className="h-3 w-3 mr-1" />
+                )}
+                {gerandoPdf ? "Gerando..." : "Gerar PDF"}
               </Button>
             </div>
           )}

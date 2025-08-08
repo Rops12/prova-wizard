@@ -27,7 +27,9 @@ export default function SimuladoCreator() {
     adicionarQuestao, 
     atualizarQuestao, 
     removerQuestao,
-    getCadernoAtivo
+    getCadernoAtivo,
+    validarDocumento,
+    obterEstatisticas
   } = useDocumentoSimulado();
   
   const [templateSelecionado, setTemplateSelecionado] = useState<Template | null>(null);
@@ -44,6 +46,10 @@ export default function SimuladoCreator() {
       // Iniciar com algumas disciplinas padrão
       const disciplinasIniciais = ["Português", "Matemática", "História"];
       criarDocumento(templateSelecionado, nomeSimulado, disciplinasIniciais);
+      toast({
+        title: "Simulado criado",
+        description: `${templateSelecionado.nome} "${nomeSimulado}" criado com sucesso!`,
+      });
     }
   };
 
@@ -51,6 +57,10 @@ export default function SimuladoCreator() {
     if (documento && !documento.cadernos.find(c => c.disciplina === disciplina)) {
       adicionarDisciplina(disciplina);
       setAbaAtiva(disciplina);
+      toast({
+        title: "Disciplina adicionada",
+        description: `${disciplina} foi adicionada ao simulado.`,
+      });
     }
   };
 
@@ -61,12 +71,18 @@ export default function SimuladoCreator() {
         ...questaoExemplo, 
         disciplina: abaAtiva 
       });
+      toast({
+        title: "Questão adicionada",
+        description: "Questão de exemplo adicionada com sucesso!",
+      });
     }
   };
 
   const disciplinasNaoAdicionadas = disciplinasDisponiveis.filter(
     disciplina => !documento?.cadernos.find(c => c.disciplina === disciplina)
   );
+
+  const estatisticas = obterEstatisticas();
 
   return (
     <div className="min-h-screen bg-background">
@@ -180,9 +196,17 @@ export default function SimuladoCreator() {
                       <div className="text-sm space-y-2 p-4 bg-muted rounded-lg">
                         <p><span className="font-medium">Template:</span> {documento.template.nome}</p>
                         <p><span className="font-medium">Disciplinas:</span> {documento.cadernos.length}</p>
-                        <p><span className="font-medium">Total de questões:</span> {
-                          documento.cadernos.reduce((acc, caderno) => acc + caderno.questoes.length, 0)
-                        }</p>
+                        <p><span className="font-medium">Total de questões:</span> {estatisticas?.totalQuestoes || 0}</p>
+                        {estatisticas && (
+                          <div className="mt-2 pt-2 border-t">
+                            <p className="font-medium mb-1">Por tipo:</p>
+                            {Object.entries(estatisticas.questoesPorTipo).map(([tipo, quantidade]) => (
+                              <p key={tipo} className="text-xs">
+                                • {tipo.replace('_', ' ')}: {quantidade}
+                              </p>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </CardContent>
                   )}
@@ -230,6 +254,10 @@ export default function SimuladoCreator() {
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   removerDisciplina(caderno.disciplina);
+                                  toast({
+                                    title: "Disciplina removida",
+                                    description: `${caderno.disciplina} foi removida do simulado.`,
+                                  });
                                 }}
                               >
                                 <X className="h-2 w-2" />
@@ -261,6 +289,10 @@ export default function SimuladoCreator() {
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   removerDisciplina(caderno.disciplina);
+                                  toast({
+                                    title: "Disciplina removida", 
+                                    description: `${caderno.disciplina} foi removida do simulado.`,
+                                  });
                                 }}
                               >
                                 <X className="h-2 w-2" />
@@ -305,6 +337,10 @@ export default function SimuladoCreator() {
                                   onSalvar={(questao) => {
                                     adicionarQuestao(caderno.disciplina, questao);
                                     setQuestaoEditando(null);
+                                    toast({
+                                      title: "Questão salva",
+                                      description: "Nova questão adicionada com sucesso!",
+                                    });
                                   }}
                                   onCancelar={() => setQuestaoEditando(null)}
                                   numeracao={caderno.questoes.length + 1}
@@ -317,9 +353,19 @@ export default function SimuladoCreator() {
                                   questao={questao}
                                   onSalvar={(questaoAtualizada) => {
                                     atualizarQuestao(caderno.disciplina, questao.id, questaoAtualizada);
+                                    toast({
+                                      title: "Questão atualizada",
+                                      description: "Questão editada com sucesso!",
+                                    });
                                   }}
                                   onCancelar={() => {}}
-                                  onRemover={() => removerQuestao(caderno.disciplina, questao.id)}
+                                  onRemover={() => {
+                                    removerQuestao(caderno.disciplina, questao.id);
+                                    toast({
+                                      title: "Questão removida",
+                                      description: "Questão removida com sucesso!",
+                                    });
+                                  }}
                                   numeracao={index + 1}
                                 />
                               ))}

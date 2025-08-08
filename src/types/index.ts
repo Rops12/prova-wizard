@@ -16,6 +16,9 @@ export interface MetadadosDocumento {
   data?: string;
   professor?: string;
   titulo?: string;
+  instituicao?: string;
+  periodo?: string;
+  observacoes?: string;
 }
 
 export interface AlternativaMultiplaEscolha {
@@ -110,4 +113,17 @@ export interface ConfiguracaoImpressao {
     entreQuestoes: number;
     entreLinhas: number;
   };
+  qualidadeImpressao: 'draft' | 'normal' | 'high';
+  incluirGabarito: boolean;
+  numeracaoPaginas: boolean;
+}
+
+export interface EstatisticasDocumento {
+  totalQuestoes: number;
+  totalDisciplinas: number;
+  questoesPorTipo: Record<string, number>;
+  questoesPorDisciplina: Array<{
+    disciplina: string;
+    quantidade: number;
+  }>;
 }

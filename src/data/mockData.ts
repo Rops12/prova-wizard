@@ -54,7 +54,7 @@ export const templatesProva: Template[] = [
     id: "prova-global",
     nome: "Prova Global",
     tipo: "prova",
-    descricao: "Template padrão para provas bimestrais e semestrais",
+    descricao: "Template padrão para provas bimestrais e semestrais com layout otimizado",
     configuracao: {
       colunas: 1,
       incluiCapa: false,
@@ -68,7 +68,7 @@ export const templatesProva: Template[] = [
     id: "microteste",
     nome: "Microteste",
     tipo: "prova", 
-    descricao: "Template compacto para avaliações rápidas",
+    descricao: "Template compacto para avaliações rápidas com controle de quebra otimizado",
     configuracao: {
       colunas: 1,
       incluiCapa: false,
@@ -82,7 +82,7 @@ export const templatesProva: Template[] = [
     id: "atividade",
     nome: "Atividade",
     tipo: "prova",
-    descricao: "Template para atividades e exercícios",
+    descricao: "Template para atividades e exercícios com formatação educacional",
     configuracao: {
       colunas: 1,
       incluiCapa: false,
@@ -100,7 +100,7 @@ export const templatesSimulado: Template[] = [
     id: "simulado-enem",
     nome: "Simulado ENEM",
     tipo: "simulado",
-    descricao: "Template no formato ENEM com múltiplas disciplinas",
+    descricao: "Template no formato ENEM com múltiplas disciplinas e quebra controlada",
     configuracao: {
       colunas: 2,
       incluiCapa: true,
@@ -114,7 +114,7 @@ export const templatesSimulado: Template[] = [
     id: "simulado-tradicional", 
     nome: "Simulado Tradicional",
     tipo: "simulado",
-    descricao: "Template tradicional para simulados gerais",
+    descricao: "Template tradicional para simulados gerais com paginação otimizada",
     configuracao: {
       colunas: 2,
       incluiCapa: true,
@@ -128,7 +128,7 @@ export const templatesSimulado: Template[] = [
     id: "simuladinho",
     nome: "Simuladinho", 
     tipo: "simulado",
-    descricao: "Template compacto para simulados menores",
+    descricao: "Template compacto para simulados menores com layout responsivo",
     configuracao: {
       colunas: 2,
       incluiCapa: false,

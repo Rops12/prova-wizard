@@ -10,6 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { Questao, AlternativaMultiplaEscolha, AfirmativaVerdadeiroFalso } from "@/types";
 import { Edit3, Trash2, Plus, GripVertical, Image, FileText, CheckCircle2, XCircle } from "lucide-react";
 import { v4 as uuidv4 } from "uuid";
+import { toast } from "@/hooks/use-toast";
 
 interface QuestaoEditorProps {
   questao?: Questao;
@@ -48,6 +49,52 @@ export function QuestaoEditor({
   });
 
   const handleSalvar = () => {
+    // Validar questão antes de salvar
+    if (!questaoLocal.enunciado.trim()) {
+      toast({
+        title: "Erro de validação",
+        description: "O enunciado da questão é obrigatório.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (questaoLocal.tipo === "multipla_escolha") {
+      const temAlternativaCorreta = questaoLocal.alternativas?.some(alt => alt.correta);
+      const alternativasPreenchidas = questaoLocal.alternativas?.every(alt => alt.texto.trim());
+      
+      if (!temAlternativaCorreta) {
+        toast({
+          title: "Erro de validação",
+          description: "Marque pelo menos uma alternativa como correta.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      if (!alternativasPreenchidas) {
+        toast({
+          title: "Erro de validação",
+          description: "Preencha todas as alternativas.",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
+    if (questaoLocal.tipo === "verdadeiro_falso") {
+      const afirmativasPreenchidas = questaoLocal.afirmativas?.every(af => af.texto.trim());
+      
+      if (!afirmativasPreenchidas) {
+        toast({
+          title: "Erro de validação",
+          description: "Preencha todas as afirmativas.",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
     onSalvar(questaoLocal);
     setEditando(false);
   };

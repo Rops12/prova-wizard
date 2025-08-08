@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { DocumentoProva, DocumentoSimulado, Questao, Template, MetadadosDocumento, CadernoSimulado } from "@/types";
 import { v4 as uuidv4 } from "uuid";
+import { toast } from "@/hooks/use-toast";
 
 // Hook para gerenciar documentos de prova
 export function useDocumentoProva() {
@@ -70,6 +71,13 @@ export function useDocumentoProva() {
   const atualizarMetadados = useCallback((novosMetadados: Partial<MetadadosDocumento>) => {
     setDocumento(prev => {
       if (!prev) return prev;
+      
+      // Notificar sobre atualização
+      toast({
+        title: "Metadados atualizados",
+        description: "As informações do documento foram atualizadas com sucesso.",
+      });
+      
       return {
         ...prev,
         metadados: { ...prev.metadados, ...novosMetadados },
@@ -78,6 +86,17 @@ export function useDocumentoProva() {
     });
   }, []);
 
+  const validarDocumento = useCallback(() => {
+    if (!documento) return false;
+    
+    const temQuestoes = documento.questoes.length > 0;
+    const metadadosCompletos = documento.metadados.disciplina && 
+                              documento.metadados.serie && 
+                              documento.metadados.turma;
+    
+    return temQuestoes && metadadosCompletos;
+  }, [documento]);
+
   return {
     documento,
     criarDocumento,
@@ -85,7 +104,8 @@ export function useDocumentoProva() {
     atualizarQuestao,
     removerQuestao,
     reordenarQuestoes,
-    atualizarMetadados
+    atualizarMetadados,
+    validarDocumento
   };
 }
 
@@ -222,6 +242,37 @@ export function useDocumentoSimulado() {
     return documento.cadernos.find(c => c.disciplina === abaAtiva) || null;
   }, [documento, abaAtiva]);
 
+  const validarDocumento = useCallback(() => {
+    if (!documento) return false;
+    
+    const temQuestoes = documento.cadernos.some(c => c.questoes.length > 0);
+    const temNome = documento.nome.trim().length > 0;
+    const temDisciplinas = documento.cadernos.length > 0;
+    
+    return temQuestoes && temNome && temDisciplinas;
+  }, [documento]);
+
+  const obterEstatisticas = useCallback(() => {
+    if (!documento) return null;
+    
+    const totalQuestoes = documento.cadernos.reduce((acc, caderno) => acc + caderno.questoes.length, 0);
+    const questoesPorTipo = documento.cadernos.reduce((acc, caderno) => {
+      caderno.questoes.forEach(questao => {
+        acc[questao.tipo] = (acc[questao.tipo] || 0) + 1;
+      });
+      return acc;
+    }, {} as Record<string, number>);
+    
+    return {
+      totalQuestoes,
+      totalDisciplinas: documento.cadernos.length,
+      questoesPorTipo,
+      questoesPorDisciplina: documento.cadernos.map(c => ({
+        disciplina: c.disciplina,
+        quantidade: c.questoes.length
+      }))
+    };
+  }, [documento]);
   return {
     documento,
     abaAtiva,
@@ -233,6 +284,8 @@ export function useDocumentoSimulado() {
     atualizarQuestao,
     removerQuestao,
     reordenarQuestoes,
-    getCadernoAtivo
+    getCadernoAtivo,
+    validarDocumento,
+    obterEstatisticas
   };
 }

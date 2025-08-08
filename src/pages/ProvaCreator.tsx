@@ -16,7 +16,7 @@ import { Template, MetadadosDocumento, Questao } from "@/types";
 
 export default function ProvaCreator() {
   const navigate = useNavigate();
-  const { documento, criarDocumento, adicionarQuestao, atualizarQuestao, removerQuestao, atualizarMetadados } = useDocumentoProva();
+  const { documento, criarDocumento, adicionarQuestao, atualizarQuestao, removerQuestao, atualizarMetadados, validarDocumento } = useDocumentoProva();
   
   const [templateSelecionado, setTemplateSelecionado] = useState<Template | null>(null);
   const [metadados, setMetadados] = useState<MetadadosDocumento>({
@@ -32,6 +32,10 @@ export default function ProvaCreator() {
   const iniciarDocumento = () => {
     if (templateSelecionado && metadados.disciplina && metadados.serie && metadados.turma) {
       criarDocumento(templateSelecionado, metadados);
+      toast({
+        title: "Documento criado",
+        description: `${templateSelecionado.nome} criado com sucesso!`,
+      });
     }
   };
 
@@ -41,6 +45,10 @@ export default function ProvaCreator() {
       adicionarQuestao({ 
         ...questaoExemplo, 
         disciplina: metadados.disciplina 
+      });
+      toast({
+        title: "Questão adicionada",
+        description: "Questão de exemplo adicionada com sucesso!",
       });
     }
   };
@@ -237,6 +245,7 @@ export default function ProvaCreator() {
                         <Button
                           size="sm"
                           onClick={() => setQuestaoEditando("nova")}
+                          disabled={!validarDocumento() && documento?.questoes.length === 0}
                         >
                           <Plus className="h-4 w-4 mr-1" />
                           Nova Questão
@@ -251,6 +260,10 @@ export default function ProvaCreator() {
                         onSalvar={(questao) => {
                           adicionarQuestao(questao);
                           setQuestaoEditando(null);
+                          toast({
+                            title: "Questão salva",
+                            description: "Nova questão adicionada com sucesso!",
+                          });
                         }}
                         onCancelar={() => setQuestaoEditando(null)}
                         numeracao={documento.questoes.length + 1}
@@ -263,9 +276,19 @@ export default function ProvaCreator() {
                         questao={questao}
                         onSalvar={(questaoAtualizada) => {
                           atualizarQuestao(questao.id, questaoAtualizada);
+                          toast({
+                            title: "Questão atualizada",
+                            description: "Questão editada com sucesso!",
+                          });
                         }}
                         onCancelar={() => {}}
-                        onRemover={() => removerQuestao(questao.id)}
+                        onRemover={() => {
+                          removerQuestao(questao.id);
+                          toast({
+                            title: "Questão removida",
+                            description: "Questão removida com sucesso!",
+                          });
+                        }}
                         numeracao={index + 1}
                       />
                     ))}

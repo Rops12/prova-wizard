@@ -1,76 +1,223 @@
-/* src/styles/paged.css */
-
-/* ===== CONFIGURAÇÃO BÁSICA DA PÁGINA ===== */
+/* Configuração de página A4 com margens otimizadas */
 @page {
     size: A4;
-    margin: 20mm 15mm; /* Usando a margem do PRD */
-}
-
-/* Rodapé com paginação */
-@page {
+    margin: 20mm 15mm 26mm 15mm;
+    
+    /* Rodapé com numeração de páginas */
     @bottom-center {
         content: "Página " counter(page) " de " counter(pages);
         font-size: 9pt;
         color: #666;
-        vertical-align: top;
-        padding-top: 10mm;
+        font-family: 'Inter', sans-serif;
+        padding-top: 5mm;
     }
 }
 
-/* ===== ESTILO GLOBAL ===== */
+/* Configuração global do documento */
 body {
     font-family: 'Inter', sans-serif;
-    font-size: 11pt; /* Ajustado para melhor encaixe */
+    font-size: 11pt;
     line-height: 1.5;
+    color: #333;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
-/* ===== CONTAINER PRINCIPAL ===== */
+/* Container principal do documento */
 .document-container {
     width: 100%;
+    max-width: 100%;
 }
 
-/* ===== LAYOUT DE SIMULADOS EM DUAS COLUNAS ===== */
+/* Layout para simulados (duas colunas) */
 .simulado-content {
     column-count: 2;
-    column-gap: 15mm; /* Espaçamento padrão */
+    column-gap: 15mm;
     column-fill: auto;
+    column-rule: none;
 }
 
-/* ===== LAYOUT DE PROVAS (UMA COLUNA) ===== */
+/* Layout para provas (uma coluna) */
 .prova-content {
     column-count: 1;
 }
 
-/* ===== ESTILO DAS QUESTÕES ===== */
+/* Controle de quebra de questões - CRÍTICO */
 .questao-container {
-    break-inside: avoid; /* Evita que a questão quebre no meio */
+    break-inside: avoid;
     page-break-inside: avoid;
     margin-bottom: 1.5rem;
+    position: relative;
+    
+    /* Garantir que questões muito longas possam quebrar se necessário */
+    orphans: 2;
+    widows: 2;
 }
 
-/* ===== SEPARAÇÃO POR DISCIPLINA EM SIMULADOS ===== */
+/* Evitar quebra dentro de alternativas */
+.alternativas-container {
+    break-inside: avoid;
+    page-break-inside: avoid;
+}
+
+/* Evitar quebra dentro de afirmativas */
+.afirmativas-container {
+    break-inside: avoid;
+    page-break-inside: avoid;
+}
+
+/* Cabeçalho do documento */
+.preview-header {
+    break-after: avoid;
+    margin-bottom: 2rem;
+}
+
+/* Títulos de disciplina em simulados */
 .disciplina-titulo {
-    break-before: page; /* Força quebra de página antes de uma nova disciplina */
+    break-before: page;
     font-size: 1.5rem;
     font-weight: bold;
     text-align: center;
     width: 100%;
-    column-span: all; /* Garante que o título ocupe as duas colunas */
+    column-span: all;
     margin-bottom: 1.5rem;
+    break-after: avoid;
+    padding: 1rem 0;
+    border-bottom: 2px solid #333;
 }
 
-/* ===== TRATAMENTO DE IMAGENS ===== */
+/* Capa do simulado */
+.capa-simulado {
+    break-after: page;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 80vh;
+    text-align: center;
+}
+
+/* Linhas para respostas dissertativas */
+.linha-resposta {
+    border-bottom: 1px solid #333;
+    height: 1.5em;
+    margin: 0.25em 0;
+    break-inside: avoid;
+    page-break-inside: avoid;
+}
+
+/* Tratamento de imagens */
 .questao-container img {
     max-width: 100%;
     height: auto;
     break-inside: avoid;
-    margin-top: 0.5rem;
+    page-break-inside: avoid;
+    margin: 0.5rem 0;
+    display: block;
+}
+
+/* Numeração de questões */
+.questao-container .font-semibold {
+    background-color: #f0f0f0 !important;
+    border: 1px solid #ccc;
+}
+
+/* Estilos para impressão */
+@media print {
+    body {
+        background: white !important;
+    }
+    
+    .pagedjs_page {
+        box-shadow: none !important;
+        margin: 0 !important;
+        border-radius: 0 !important;
+    }
+    
+    /* Garantir que cores sejam preservadas na impressão */
+    * {
+        -webkit-print-color-adjust: exact !important;
+        color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+    
+    /* Otimizar quebras de página para impressão */
+    .questao-container {
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
+    }
+    
+    .alternativas-container,
+    .afirmativas-container {
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
+    }
+}
+
+/* Estilos específicos para o preview na tela */
+@media screen {
+    .pagedjs_pages {
+        background: #f3f4f6;
+        padding: 2rem 1rem;
+    }
+    
+    .pagedjs_page {
+        background: white;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        border-radius: 4px;
+        margin-bottom: 1rem;
+        overflow: hidden;
+    }
+}
+
+/* Melhorias na tipografia */
+h1, h2, h3, h4, h5, h6 {
+    font-weight: 600;
+    line-height: 1.2;
     margin-bottom: 0.5rem;
 }
 
-/* ===== ESPAÇOS PARA RESPOSTAS DISSERTATIVAS ===== */
-.linha-resposta {
-    border-bottom: 1px solid #333;
-    height: 1.5em; /* Usa 'em' para ser relativo ao tamanho da fonte */
-    margin: 0.25em 0;
+p {
+    margin-bottom: 0.75rem;
+}
+
+/* Espaçamento consistente para listas */
+ul, ol {
+    margin-bottom: 1rem;
+    padding-left: 1.5rem;
+}
+
+li {
+    margin-bottom: 0.25rem;
+}
+
+/* Garantir que separadores sejam visíveis */
+hr, .separator {
+    border: none;
+    border-top: 1px solid #ccc;
+    margin: 1rem 0;
+    break-inside: avoid;
+    page-break-inside: avoid;
+}
+
+/* Estilos para gabarito destacado */
+.gabarito-destacado {
+    background-color: #fff3cd !important;
+    border-left: 4px solid #ffc107 !important;
+    padding-left: 0.5rem !important;
+}
+
+/* Controle fino de quebras para elementos específicos */
+.break-before-page {
+    break-before: page;
+    page-break-before: always;
+}
+
+.break-after-avoid {
+    break-after: avoid;
+    page-break-after: avoid;
+}
+
+.break-inside-avoid {
+    break-inside: avoid;
+    page-break-inside: avoid;
 }

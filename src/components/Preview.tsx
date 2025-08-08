@@ -1,8 +1,10 @@
+// src/components/Preview.tsx (Corrigido)
+
 import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Documento } from "@/types";
-import { Download, Eye, EyeOff, RefreshCw } from "lucide-react";
+import { Download, Eye, EyeOff, RefreshCw, Loader2 } from "lucide-react";
 import React, { useState, useEffect, useRef } from "react";
 import ReactDOMServer from "react-dom/server";
 import { PagedPreview } from "./PagedPreview";
@@ -11,13 +13,17 @@ import { PagedPreview } from "./PagedPreview";
 import indexCssUrl from '@/index.css?url';
 import pagedCssUrl from '@/styles/paged.css?url';
 
+// CORREÇÃO: Usar a URL da CDN para o script do paged.js
+const pagedjsPolyfillUrl = 'https://unpkg.com/pagedjs@0.4.3/dist/paged.polyfill.js';
+
 // Declaração para TypeScript reconhecer a biblioteca na window do iframe
 declare global {
   interface Window {
-    PagedPolyfill: {
-      render: (content: string, container: HTMLElement) => Promise<void>;
+    Paged: {
+      Previewer: new () => {
+        preview: (content: string, css: string[], container: HTMLElement) => Promise<any>;
+      };
     };
-    Paged: any;
   }
 }
 
@@ -27,224 +33,97 @@ interface PreviewProps {
 
 export function Preview({ documento }: PreviewProps) {
   const [exibirGabarito, setExibirGabarito] = useState(false);
-  const [isRendering, setIsRendering] = useState(false);
+  const [isRendering, setIsRendering] = useState(true);
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const [isIframeReady, setIsIframeReady] = useState(false);
-  const [renderKey, setRenderKey] = useState(0);
+  const [renderKey, setRenderKey] = useState(0); // Usado para forçar a recriação do iframe
 
-  // Força re-renderização quando necessário
-  const forceRerender = () => {
-    setRenderKey(prev => prev + 1);
-    setIsIframeReady(false);
-  };
+  // Memoiza o conteúdo HTML a ser renderizado para evitar re-renderizações desnecessárias.
+  const documentoHtml = React.useMemo(() => {
+    if (!documento) return "";
+    return ReactDOMServer.renderToString(
+      <PagedPreview documento={documento} exibirGabarito={exibirGabarito} />
+    );
+  }, [documento, exibirGabarito]);
+  
+  const temQuestoes = documento && (
+    (documento.tipo === 'prova' && documento.questoes.length > 0) ||
+    (documento.tipo === 'simulado' && documento.cadernos.some(c => c.questoes.length > 0))
+  );
 
+  // Efeito para configurar e renderizar o conteúdo no iframe
   useEffect(() => {
     const iframe = iframeRef.current;
     if (!iframe) return;
 
+    setIsRendering(true);
+
     const handleLoad = () => {
       const doc = iframe.contentDocument;
-      if (!doc) return;
+      const win = iframe.contentWindow;
+      if (!doc || !win) return;
 
-      doc.open();
-      doc.write(`
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <link rel="preconnect" href="https://fonts.googleapis.com">
-            <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-            <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-            <link rel="stylesheet" href="${indexCssUrl}">
-            <link rel="stylesheet" href="${pagedCssUrl}">
-            <style>
-              /* Estilos específicos para preview e impressão */
-              body { 
-                margin: 0; 
-                background-color: #f3f4f6; 
-                font-family: 'Inter', sans-serif;
-              }
-              
-              /* Interface do paged.js */
-              .pagedjs_preview-content { 
-                overflow: visible !important; 
-              }
-              
-              .pagedjs_pages { 
-                display: flex; 
-                flex-direction: column; 
-                align-items: center; 
-                padding: 1rem 0; 
-                gap: 1rem;
-              }
-              
-              .pagedjs_page { 
-                background: white; 
-                box-shadow: 0 4px 12px rgba(0,0,0,0.15); 
-                margin: 0;
-                border-radius: 4px;
-                overflow: hidden;
-              }
+      // Monta o <head> do iframe
+      doc.head.innerHTML = `
+        <meta charset="UTF-8">
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+        <link rel="stylesheet" href="${indexCssUrl}">
+        <link rel="stylesheet" href="${pagedCssUrl}">
+      `;
+      
+      // Cria o container do corpo
+      doc.body.innerHTML = '<div id="paged-container"></div>';
+      const container = doc.getElementById('paged-container')!;
 
-              /* Garantir que o preview seja idêntico ao PDF */
-              @media screen {
-                .pagedjs_page {
-                  transform: scale(0.8);
-                  transform-origin: center top;
-                }
-              }
-
-              /* Controle de quebra de questões aprimorado */
-              .questao-container {
-                break-inside: avoid;
-                page-break-inside: avoid;
-                margin-bottom: 1.5rem;
-                position: relative;
-              }
-
-              /* Evitar quebra de alternativas */
-              .alternativas-container {
-                break-inside: avoid;
-                page-break-inside: avoid;
-              }
-
-              /* Evitar quebra de afirmativas */
-              .afirmativas-container {
-                break-inside: avoid;
-                page-break-inside: avoid;
-              }
-
-              /* Linhas de resposta para dissertativas */
-              .linha-resposta {
-                border-bottom: 1px solid #333;
-                height: 1.5em;
-                margin: 0.25em 0;
-                break-inside: avoid;
-              }
-
-              /* Espaçamento consistente */
-              .preview-header {
-                margin-bottom: 2rem;
-                break-after: avoid;
-              }
-
-              .disciplina-titulo {
-                break-before: page;
-                font-size: 1.5rem;
-                font-weight: bold;
-                text-align: center;
-                width: 100%;
-                column-span: all;
-                margin-bottom: 1.5rem;
-                break-after: avoid;
-              }
-
-              /* Melhorar renderização de texto */
-              * {
-                -webkit-font-smoothing: antialiased;
-                -moz-osx-font-smoothing: grayscale;
-              }
-            </style>
-          </head>
-          <body>
-            <div id="paged-container"></div>
-          </body>
-        </html>
-      `);
-      doc.close();
-
-      // Carregar paged.js
-      const pagedPolyfill = doc.createElement('script');
-      pagedPolyfill.src = 'https://unpkg.com/pagedjs/dist/paged.polyfill.js';
-      pagedPolyfill.onload = () => {
-        // Carregar script customizado
-        const customPaged = doc.createElement('script');
-        customPaged.src = `/paged.js`;
-        customPaged.onload = () => {
-          setIsIframeReady(true);
-        };
-        doc.head.appendChild(customPaged);
+      // Se não há documento, não faz mais nada.
+      if (!documentoHtml) {
+        setIsRendering(false);
+        return;
+      }
+      
+      // Carrega o script do paged.js a partir da CDN
+      const script = doc.createElement('script');
+      script.src = pagedjsPolyfillUrl;
+      script.onload = () => {
+        if (win.Paged) {
+          const paged = new win.Paged.Previewer();
+          paged.preview(documentoHtml, [], container)
+            .then(() => setIsRendering(false))
+            .catch(error => {
+              console.error("Erro ao renderizar com Paged.js:", error);
+              // Fallback: mostra o conteúdo sem paginação em caso de erro
+              container.innerHTML = documentoHtml; 
+              setIsRendering(false);
+            });
+        }
       };
-      doc.head.appendChild(pagedPolyfill);
+      doc.head.appendChild(script);
     };
 
     iframe.addEventListener('load', handleLoad);
-    iframe.src = 'about:blank';
+    iframe.src = 'about:blank'; // Dispara o evento 'load'
 
     return () => {
       iframe.removeEventListener('load', handleLoad);
     };
-  }, [renderKey]);
+  }, [documentoHtml, renderKey]); // Re-executa quando o HTML ou a chave de renderização mudam
 
-  useEffect(() => {
-    if (isIframeReady && documento && iframeRef.current) {
-      setIsRendering(true);
-      
-      const iframe = iframeRef.current;
-      const iframeWindow = iframe.contentWindow;
-      const iframeDoc = iframe.contentDocument;
-
-      if (iframeWindow && iframeDoc) {
-        try {
-          const contentString = ReactDOMServer.renderToString(
-            <PagedPreview documento={documento} exibirGabarito={exibirGabarito} />
-          );
-
-          const container = iframeDoc.getElementById('paged-container');
-          if (container && iframeWindow.PagedPolyfill) {
-            // Renderizar com paged.js
-            iframeWindow.PagedPolyfill.render(contentString, container)
-              .then(() => {
-                setIsRendering(false);
-              })
-              .catch((error: any) => {
-                console.error('Erro na renderização:', error);
-                setIsRendering(false);
-              });
-          }
-        } catch (error) {
-          console.error('Erro ao gerar conteúdo:', error);
-          setIsRendering(false);
-        }
-      }
-    } else if (isIframeReady && !documento && iframeRef.current) {
-      const iframeDoc = iframeRef.current.contentDocument;
-      if (iframeDoc) {
-        const container = iframeDoc.getElementById('paged-container');
-        if (container) container.innerHTML = '';
-      }
-      setIsRendering(false);
-    }
-  }, [documento, exibirGabarito, isIframeReady]);
-
-  // Função para gerar PDF com configurações otimizadas
+  // Função para gerar o PDF
   const gerarPDF = () => {
     if (iframeRef.current?.contentWindow) {
-      // Configurar opções de impressão para melhor qualidade
-      const printWindow = iframeRef.current.contentWindow;
-      
-      // Aguardar um momento para garantir que a renderização está completa
-      setTimeout(() => {
-        printWindow.print();
-      }, 500);
+      iframeRef.current.contentWindow.print();
     }
   };
 
-  const todasQuestoes = React.useMemo(() => {
-    if(!documento) return [];
-    if(documento.tipo === 'prova') return documento.questoes;
-    return documento.cadernos.flatMap(c => c.questoes.map(q => ({...q, disciplina: c.disciplina})));
-  }, [documento]);
-
-  const showPreview = documento && todasQuestoes.length > 0;
+  const forceRerender = () => setRenderKey(prev => prev + 1);
 
   return (
     <Card className="h-full flex flex-col">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg">Preview</CardTitle>
-          {showPreview && (
+          {temQuestoes && (
             <div className="flex items-center gap-2">
               <Button 
                 variant="ghost" 
@@ -285,13 +164,13 @@ export function Preview({ documento }: PreviewProps) {
         {isRendering && (
           <div className="absolute inset-0 flex items-center justify-center bg-background/80 z-10">
             <div className="text-center">
-              <RefreshCw className="h-8 w-8 mx-auto mb-2 animate-spin text-primary" />
+              <Loader2 className="h-8 w-8 mx-auto mb-2 animate-spin text-primary" />
               <p className="text-sm text-muted-foreground">Renderizando documento...</p>
             </div>
           </div>
         )}
         
-        {!showPreview && !isRendering && (
+        {!temQuestoes && !isRendering && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <div className="text-center text-muted-foreground p-4">
               <Eye className="h-12 w-12 mx-auto mb-4 opacity-50" />
@@ -304,8 +183,8 @@ export function Preview({ documento }: PreviewProps) {
           ref={iframeRef}
           title="Document Preview"
           className="w-full h-full border-0"
-          style={{ visibility: showPreview ? 'visible' : 'hidden' }}
-          key={renderKey}
+          style={{ visibility: temQuestoes ? 'visible' : 'hidden' }}
+          key={renderKey} // A chave força a recriação do iframe
         />
       </div>
     </Card>

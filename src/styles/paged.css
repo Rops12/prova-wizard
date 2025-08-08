@@ -1,19 +1,22 @@
-/* Configuração de página A4 com margens otimizadas */
+/* src/styles/paged.css */
+
+/* --- CONFIGURAÇÃO DA PÁGINA E DO DOCUMENTO --- */
+
+/* @page define o tamanho e margens da nossa "folha A4" */
 @page {
     size: A4;
     margin: 20mm 15mm 26mm 15mm;
-    
+
     /* Rodapé com numeração de páginas */
     @bottom-center {
         content: "Página " counter(page) " de " counter(pages);
         font-size: 9pt;
         color: #666;
         font-family: 'Inter', sans-serif;
-        padding-top: 5mm;
     }
 }
 
-/* Configuração global do documento */
+/* Configuração global do corpo do documento dentro do preview */
 body {
     font-family: 'Inter', sans-serif;
     font-size: 11pt;
@@ -23,18 +26,53 @@ body {
     -moz-osx-font-smoothing: grayscale;
 }
 
-/* Container principal do documento */
-.document-container {
-    width: 100%;
-    max-width: 100%;
+/* --- ESTILOS PARA O PREVIEW NA TELA --- */
+@media screen {
+    /* Fundo cinza para a área de preview */
+    .pagedjs_pages {
+        background: #e0e0e0;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 20px;
+    }
+
+    /* Estilo da "folha de papel" no preview */
+    .pagedjs_page {
+        background: white;
+        box-shadow: 0 0 10px rgba(0,0,0,0.15);
+        flex-shrink: 0;
+        border-radius: 4px;
+        overflow: hidden;
+    }
 }
+
+/* --- ESTILOS PARA A IMPRESSÃO (GERAR PDF) --- */
+@media print {
+    /* Remove estilos visuais do preview ao imprimir */
+    .pagedjs_page {
+        box-shadow: none !important;
+        margin: 0 !important;
+        border-radius: 0 !important;
+    }
+    
+    .pagedjs_pages {
+        background: transparent !important;
+        padding: 0 !important;
+    }
+    
+    body {
+        background-color: #fff !important;
+    }
+}
+
+/* --- CONTROLE DE LAYOUT E QUEBRA DE PÁGINA --- */
 
 /* Layout para simulados (duas colunas) */
 .simulado-content {
     column-count: 2;
     column-gap: 15mm;
-    column-fill: auto;
-    column-rule: none;
 }
 
 /* Layout para provas (uma coluna) */
@@ -42,182 +80,46 @@ body {
     column-count: 1;
 }
 
-/* Controle de quebra de questões - CRÍTICO */
+/* Regra CRÍTICA: Evita que questões quebrem no meio */
 .questao-container {
     break-inside: avoid;
     page-break-inside: avoid;
     margin-bottom: 1.5rem;
-    position: relative;
-    
-    /* Garantir que questões muito longas possam quebrar se necessário */
-    orphans: 2;
-    widows: 2;
 }
 
-/* Evitar quebra dentro de alternativas */
-.alternativas-container {
+/* Evita quebras dentro de blocos de alternativas e afirmativas */
+.alternative, .afirmativa, .alternativas-container, .afirmativas-container {
     break-inside: avoid;
     page-break-inside: avoid;
 }
 
-/* Evitar quebra dentro de afirmativas */
-.afirmativas-container {
-    break-inside: avoid;
-    page-break-inside: avoid;
+/* Linhas de resposta para questões dissertativas */
+.linha-resposta {
+    border-bottom: 1px solid #333;
+    height: 1.5em;
+    margin: 0.25em 0;
 }
 
-/* Cabeçalho do documento */
-.preview-header {
-    break-after: avoid;
-    margin-bottom: 2rem;
-}
-
-/* Títulos de disciplina em simulados */
+/* Títulos de disciplina (para simulados) */
 .disciplina-titulo {
-    break-before: page;
+    break-before: page; /* Força que cada disciplina comece em uma nova página */
     font-size: 1.5rem;
     font-weight: bold;
     text-align: center;
     width: 100%;
-    column-span: all;
+    column-span: all; /* Ocupa todas as colunas */
     margin-bottom: 1.5rem;
-    break-after: avoid;
-    padding: 1rem 0;
+    padding-top: 1rem;
     border-bottom: 2px solid #333;
 }
 
 /* Capa do simulado */
 .capa-simulado {
-    break-after: page;
+    break-after: page; /* Garante que o conteúdo comece após a capa */
     display: flex;
     align-items: center;
     justify-content: center;
-    min-height: 80vh;
+    min-height: 80vh; /* Ocupa a maior parte da página */
     text-align: center;
-}
-
-/* Linhas para respostas dissertativas */
-.linha-resposta {
-    border-bottom: 1px solid #333;
-    height: 1.5em;
-    margin: 0.25em 0;
-    break-inside: avoid;
-    page-break-inside: avoid;
-}
-
-/* Tratamento de imagens */
-.questao-container img {
-    max-width: 100%;
-    height: auto;
-    break-inside: avoid;
-    page-break-inside: avoid;
-    margin: 0.5rem 0;
-    display: block;
-}
-
-/* Numeração de questões */
-.questao-container .font-semibold {
-    background-color: #f0f0f0 !important;
-    border: 1px solid #ccc;
-}
-
-/* Estilos para impressão */
-@media print {
-    body {
-        background: white !important;
-    }
-    
-    .pagedjs_page {
-        box-shadow: none !important;
-        margin: 0 !important;
-        border-radius: 0 !important;
-    }
-    
-    /* Garantir que cores sejam preservadas na impressão */
-    * {
-        -webkit-print-color-adjust: exact !important;
-        color-adjust: exact !important;
-        print-color-adjust: exact !important;
-    }
-    
-    /* Otimizar quebras de página para impressão */
-    .questao-container {
-        break-inside: avoid !important;
-        page-break-inside: avoid !important;
-    }
-    
-    .alternativas-container,
-    .afirmativas-container {
-        break-inside: avoid !important;
-        page-break-inside: avoid !important;
-    }
-}
-
-/* Estilos específicos para o preview na tela */
-@media screen {
-    .pagedjs_pages {
-        background: #f3f4f6;
-        padding: 2rem 1rem;
-    }
-    
-    .pagedjs_page {
-        background: white;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        border-radius: 4px;
-        margin-bottom: 1rem;
-        overflow: hidden;
-    }
-}
-
-/* Melhorias na tipografia */
-h1, h2, h3, h4, h5, h6 {
-    font-weight: 600;
-    line-height: 1.2;
-    margin-bottom: 0.5rem;
-}
-
-p {
-    margin-bottom: 0.75rem;
-}
-
-/* Espaçamento consistente para listas */
-ul, ol {
-    margin-bottom: 1rem;
-    padding-left: 1.5rem;
-}
-
-li {
-    margin-bottom: 0.25rem;
-}
-
-/* Garantir que separadores sejam visíveis */
-hr, .separator {
-    border: none;
-    border-top: 1px solid #ccc;
-    margin: 1rem 0;
-    break-inside: avoid;
-    page-break-inside: avoid;
-}
-
-/* Estilos para gabarito destacado */
-.gabarito-destacado {
-    background-color: #fff3cd !important;
-    border-left: 4px solid #ffc107 !important;
-    padding-left: 0.5rem !important;
-}
-
-/* Controle fino de quebras para elementos específicos */
-.break-before-page {
-    break-before: page;
-    page-break-before: always;
-}
-
-.break-after-avoid {
-    break-after: avoid;
-    page-break-after: avoid;
-}
-
-.break-inside-avoid {
-    break-inside: avoid;
-    page-break-inside: avoid;
+    column-span: all;
 }

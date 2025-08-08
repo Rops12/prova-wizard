@@ -1,0 +1,76 @@
+/* src/styles/paged.css */
+
+/* ===== CONFIGURAÇÃO BÁSICA DA PÁGINA ===== */
+@page {
+    size: A4;
+    margin: 20mm 15mm; /* Usando a margem do PRD */
+}
+
+/* Rodapé com paginação */
+@page {
+    @bottom-center {
+        content: "Página " counter(page) " de " counter(pages);
+        font-size: 9pt;
+        color: #666;
+        vertical-align: top;
+        padding-top: 10mm;
+    }
+}
+
+/* ===== ESTILO GLOBAL ===== */
+body {
+    font-family: 'Inter', sans-serif;
+    font-size: 11pt; /* Ajustado para melhor encaixe */
+    line-height: 1.5;
+}
+
+/* ===== CONTAINER PRINCIPAL ===== */
+.document-container {
+    width: 100%;
+}
+
+/* ===== LAYOUT DE SIMULADOS EM DUAS COLUNAS ===== */
+.simulado-content {
+    column-count: 2;
+    column-gap: 15mm; /* Espaçamento padrão */
+    column-fill: auto;
+}
+
+/* ===== LAYOUT DE PROVAS (UMA COLUNA) ===== */
+.prova-content {
+    column-count: 1;
+}
+
+/* ===== ESTILO DAS QUESTÕES ===== */
+.questao-container {
+    break-inside: avoid; /* Evita que a questão quebre no meio */
+    page-break-inside: avoid;
+    margin-bottom: 1.5rem;
+}
+
+/* ===== SEPARAÇÃO POR DISCIPLINA EM SIMULADOS ===== */
+.disciplina-titulo {
+    break-before: page; /* Força quebra de página antes de uma nova disciplina */
+    font-size: 1.5rem;
+    font-weight: bold;
+    text-align: center;
+    width: 100%;
+    column-span: all; /* Garante que o título ocupe as duas colunas */
+    margin-bottom: 1.5rem;
+}
+
+/* ===== TRATAMENTO DE IMAGENS ===== */
+.questao-container img {
+    max-width: 100%;
+    height: auto;
+    break-inside: avoid;
+    margin-top: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+/* ===== ESPAÇOS PARA RESPOSTAS DISSERTATIVAS ===== */
+.linha-resposta {
+    border-bottom: 1px solid #333;
+    height: 1.5em; /* Usa 'em' para ser relativo ao tamanho da fonte */
+    margin: 0.25em 0;
+}

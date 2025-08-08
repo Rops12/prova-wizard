@@ -10,12 +10,14 @@ import { QuestaoEditor } from "@/components/QuestaoEditor";
 import { Preview } from "@/components/Preview";
 import { ArrowLeft, Plus, FileText, Settings } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useToast } from "@/hooks/use-toast";
 import { useDocumentoProva } from "@/hooks/useDocumento";
 import { instituicaoMock, templatesProva, questoesExemplo } from "@/data/mockData";
 import { Template, MetadadosDocumento, Questao } from "@/types";
 
 export default function ProvaCreator() {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const { documento, criarDocumento, adicionarQuestao, atualizarQuestao, removerQuestao, atualizarMetadados, validarDocumento } = useDocumentoProva();
   
   const [templateSelecionado, setTemplateSelecionado] = useState<Template | null>(null);

@@ -11,12 +11,14 @@ import { QuestaoEditor } from "@/components/QuestaoEditor";
 import { Preview } from "@/components/Preview";
 import { ArrowLeft, Plus, FileText, X, Settings } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useToast } from "@/hooks/use-toast";
 import { useDocumentoSimulado } from "@/hooks/useDocumento";
 import { instituicaoMock, templatesSimulado, questoesExemplo } from "@/data/mockData";
 import { Template } from "@/types";
 
 export default function SimuladoCreator() {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const { 
     documento, 
     abaAtiva, 

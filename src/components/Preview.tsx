@@ -62,8 +62,9 @@ export function Preview({ documento }: PreviewProps) {
               /* Estilos específicos para preview e impressão */
               body { 
                 margin: 0; 
-                background-color: #f3f4f6; 
+                background-color: transparent; 
                 font-family: 'Inter', sans-serif;
+                overflow: hidden;
               }
               
               /* Interface do paged.js */
@@ -281,7 +282,7 @@ export function Preview({ documento }: PreviewProps) {
       </CardHeader>
       <Separator />
 
-      <div className="p-0 bg-gray-200 flex-grow overflow-auto relative">
+      <div className="p-0 bg-gray-50 flex-grow overflow-hidden relative">
         {isRendering && (
           <div className="absolute inset-0 flex items-center justify-center bg-background/80 z-10">
             <div className="text-center">
@@ -303,8 +304,11 @@ export function Preview({ documento }: PreviewProps) {
         <iframe
           ref={iframeRef}
           title="Document Preview"
-          className="w-full h-full border-0"
-          style={{ visibility: showPreview ? 'visible' : 'hidden' }}
+          className="w-full h-full border-0 bg-transparent"
+          style={{ 
+            visibility: showPreview ? 'visible' : 'hidden',
+            backgroundColor: 'transparent'
+          }}
           key={renderKey}
         />
       </div>

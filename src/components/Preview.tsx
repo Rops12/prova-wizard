@@ -6,6 +6,8 @@ import { Download, Eye, EyeOff, RefreshCw } from "lucide-react";
 import React, { useState, useEffect, useRef } from "react";
 import ReactDOMServer from "react-dom/server";
 import { PagedPreview } from "./PagedPreview";
+import { injectTypographyStyles } from "@/lib/typography";
+import { getPagedController, provaConfig, simuladoConfig } from "@/lib/pagedSetup";
 
 // URLs dos arquivos de estilo
 import indexCssUrl from '@/index.css?url';
@@ -46,6 +48,9 @@ export function Preview({ documento }: PreviewProps) {
       const doc = iframe.contentDocument;
       if (!doc) return;
 
+      // Determinar configuração baseada no tipo de documento
+      const config = documento?.tipo === 'simulado' ? simuladoConfig : provaConfig;
+
       doc.open();
       doc.write(`
         <!DOCTYPE html>
@@ -59,15 +64,28 @@ export function Preview({ documento }: PreviewProps) {
             <link rel="stylesheet" href="${indexCssUrl}">
             <link rel="stylesheet" href="${pagedCssUrl}">
             <style>
-              /* Estilos específicos para preview e impressão */
+              /* Reset e base */
+              * {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+              }
+              
               body { 
                 margin: 0; 
                 background-color: transparent; 
                 font-family: 'Inter', sans-serif;
+                font-size: 11pt;
+                line-height: 1.5;
+                color: #333;
                 overflow: hidden;
+                -webkit-font-smoothing: antialiased;
+                -moz-osx-font-smoothing: grayscale;
+                text-rendering: optimizeLegibility;
+                font-feature-settings: "kern", "liga", "clig", "calt";
               }
               
-              /* Interface do paged.js */
+              /* Interface aprimorada do paged.js */
               .pagedjs_preview-content { 
                 overflow: visible !important; 
               }
@@ -76,75 +94,266 @@ export function Preview({ documento }: PreviewProps) {
                 display: flex; 
                 flex-direction: column; 
                 align-items: center; 
-                padding: 1rem 0; 
-                gap: 1rem;
+                padding: 1.5rem 0; 
+                gap: 1.5rem;
+                background: #f8fafc;
               }
               
               .pagedjs_page { 
                 background: white; 
-                box-shadow: 0 4px 12px rgba(0,0,0,0.15); 
+                box-shadow: 0 8px 25px rgba(0,0,0,0.1), 0 3px 10px rgba(0,0,0,0.05); 
                 margin: 0;
-                border-radius: 4px;
+                border-radius: 6px;
                 overflow: hidden;
+                border: 1px solid rgba(0,0,0,0.05);
+                transition: box-shadow 0.2s ease;
               }
 
-              /* Garantir que o preview seja idêntico ao PDF */
+              .pagedjs_page:hover {
+                box-shadow: 0 12px 35px rgba(0,0,0,0.15), 0 5px 15px rgba(0,0,0,0.08);
+              }
+
+              /* Otimização para preview em tela */
               @media screen {
                 .pagedjs_page {
-                  transform: scale(0.8);
+                  transform: scale(0.85);
                   transform-origin: center top;
                 }
               }
 
-              /* Controle de quebra de questões aprimorado */
+              /* Sistema tipográfico avançado */
+              h1, h2, h3, h4, h5, h6 {
+                font-weight: 600;
+                line-height: 1.2;
+                margin-bottom: 0.75rem;
+                color: #1a1a1a;
+                letter-spacing: -0.01em;
+              }
+
+              h1 { font-size: 1.5rem; }
+              h2 { font-size: 1.3rem; }
+              h3 { font-size: 1.1rem; }
+
+              p {
+                margin-bottom: 0.75rem;
+                text-align: justify;
+                hyphens: auto;
+                orphans: 2;
+                widows: 2;
+              }
+
+              /* Controle milimétrico de quebra de questões */
               .questao-container {
                 break-inside: avoid;
                 page-break-inside: avoid;
-                margin-bottom: 1.5rem;
+                margin-bottom: 1.75rem;
                 position: relative;
+                orphans: 2;
+                widows: 2;
+                border-radius: 4px;
+                padding: 0.5rem;
+                background: rgba(248, 250, 252, 0.3);
               }
 
-              /* Evitar quebra de alternativas */
+              .questao-container.questao-longa {
+                break-inside: auto;
+                page-break-inside: auto;
+                background: rgba(255, 248, 220, 0.3);
+              }
+
+              .questao-numero {
+                font-weight: 700;
+                background: linear-gradient(135deg, #f1f5f9, #e2e8f0);
+                border: 1px solid #cbd5e1;
+                border-radius: 4px;
+                padding: 0.5rem;
+                margin-bottom: 0.75rem;
+                break-after: avoid;
+                page-break-after: avoid;
+              }
+
+              .questao-enunciado {
+                margin-bottom: 1rem;
+                text-align: justify;
+                hyphens: auto;
+                line-height: 1.6;
+                orphans: 3;
+                widows: 3;
+              }
+
+              /* Controle preciso de alternativas */
               .alternativas-container {
                 break-inside: avoid;
                 page-break-inside: avoid;
+                margin-top: 1rem;
               }
 
-              /* Evitar quebra de afirmativas */
+              .alternativas-container.allow-break {
+                break-inside: auto;
+                page-break-inside: auto;
+              }
+
+              .alternativa {
+                break-inside: avoid;
+                page-break-inside: avoid;
+                margin-bottom: 0.5rem;
+                display: flex;
+                align-items: flex-start;
+                gap: 0.5rem;
+                padding: 0.25rem;
+                border-radius: 3px;
+                transition: background-color 0.1s ease;
+              }
+
+              .alternativa:nth-child(2n) {
+                break-before: auto;
+              }
+
+              .alternativa-letra {
+                font-weight: 600;
+                min-width: 1.5em;
+                flex-shrink: 0;
+                color: #475569;
+              }
+
+              .alternativa-texto {
+                flex: 1;
+                text-align: justify;
+                hyphens: auto;
+                line-height: 1.5;
+              }
+
+              /* Controle de afirmativas V/F */
               .afirmativas-container {
                 break-inside: avoid;
                 page-break-inside: avoid;
               }
 
-              /* Linhas de resposta para dissertativas */
-              .linha-resposta {
-                border-bottom: 1px solid #333;
-                height: 1.5em;
-                margin: 0.25em 0;
+              .afirmativa {
                 break-inside: avoid;
+                page-break-inside: avoid;
+                margin-bottom: 0.5rem;
+                padding: 0.25rem;
+                border-left: 3px solid #e2e8f0;
+                padding-left: 0.75rem;
               }
 
-              /* Espaçamento consistente */
+              /* Linhas para respostas dissertativas */
+              .linha-resposta {
+                border-bottom: 1px solid #64748b;
+                height: 1.5em;
+                margin: 0.4em 0;
+                break-inside: avoid;
+                page-break-inside: avoid;
+              }
+
+              /* Cabeçalhos e estrutura */
               .preview-header {
                 margin-bottom: 2rem;
                 break-after: avoid;
+                page-break-after: avoid;
+                padding-bottom: 1rem;
+                border-bottom: 2px solid #e2e8f0;
               }
 
               .disciplina-titulo {
                 break-before: page;
+                page-break-before: always;
+                break-after: avoid;
+                page-break-after: avoid;
                 font-size: 1.5rem;
-                font-weight: bold;
+                font-weight: 700;
                 text-align: center;
                 width: 100%;
                 column-span: all;
-                margin-bottom: 1.5rem;
-                break-after: avoid;
+                margin-bottom: 2rem;
+                padding: 1.5rem 1rem;
+                background: linear-gradient(135deg, #1e293b, #334155);
+                color: white;
+                border-radius: 6px;
+                box-shadow: 0 4px 12px rgba(30, 41, 59, 0.3);
               }
 
-              /* Melhorar renderização de texto */
-              * {
-                -webkit-font-smoothing: antialiased;
-                -moz-osx-font-smoothing: grayscale;
+              .capa-simulado {
+                break-after: page;
+                page-break-after: always;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                min-height: 80vh;
+                text-align: center;
+                background: linear-gradient(135deg, #f8fafc, #e2e8f0);
+              }
+
+              /* Layout de colunas para simulados */
+              .simulado-content {
+                column-count: 2;
+                column-gap: 15mm;
+                column-fill: auto;
+                column-rule: 1px solid #e2e8f0;
+              }
+
+              .prova-content {
+                column-count: 1;
+              }
+
+              /* Imagens responsivas */
+              img {
+                max-width: 100%;
+                height: auto;
+                break-inside: avoid;
+                page-break-inside: avoid;
+                margin: 0.75rem 0;
+                display: block;
+                border-radius: 4px;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+              }
+
+              /* Separadores */
+              hr {
+                border: none;
+                border-top: 1px solid #cbd5e1;
+                margin: 1.5rem 0;
+                break-inside: avoid;
+                page-break-inside: avoid;
+              }
+
+              /* Melhorias para impressão */
+              @media print {
+                body {
+                  background: white !important;
+                  font-size: 10pt;
+                }
+                
+                .pagedjs_page {
+                  box-shadow: none !important;
+                  margin: 0 !important;
+                  border-radius: 0 !important;
+                  border: none !important;
+                  transform: none !important;
+                }
+                
+                * {
+                  -webkit-print-color-adjust: exact !important;
+                  color-adjust: exact !important;
+                  print-color-adjust: exact !important;
+                }
+                
+                .questao-container {
+                  break-inside: avoid !important;
+                  page-break-inside: avoid !important;
+                  background: transparent !important;
+                }
+                
+                .alternativas-container,
+                .afirmativas-container {
+                  break-inside: avoid !important;
+                  page-break-inside: avoid !important;
+                }
+
+                h1, h2, h3, h4, h5, h6 {
+                  page-break-after: avoid !important;
+                }
               }
             </style>
           </head>
@@ -155,19 +364,36 @@ export function Preview({ documento }: PreviewProps) {
       `);
       doc.close();
 
-      // Carregar paged.js
-      const pagedPolyfill = doc.createElement('script');
-      pagedPolyfill.src = 'https://unpkg.com/pagedjs/dist/paged.polyfill.js';
-      pagedPolyfill.onload = () => {
-        // Carregar script customizado
-        const customPaged = doc.createElement('script');
-        customPaged.src = `/paged.js`;
-        customPaged.onload = () => {
-          setIsIframeReady(true);
-        };
-        doc.head.appendChild(customPaged);
-      };
-      doc.head.appendChild(pagedPolyfill);
+      // Injetar estilos tipográficos no iframe
+      const iframeWindow = iframe.contentWindow;
+      if (iframeWindow) {
+        setTimeout(() => {
+          // Carregar paged.js
+          const pagedPolyfill = doc.createElement('script');
+          pagedPolyfill.src = 'https://unpkg.com/pagedjs/dist/paged.polyfill.js';
+          pagedPolyfill.onload = () => {
+            // Carregar script customizado
+            const customPaged = doc.createElement('script');
+            customPaged.src = `/paged.js`;
+            customPaged.onload = () => {
+              // Inicializar tipografia no iframe
+              if (iframeWindow.document) {
+                const style = iframeWindow.document.createElement('style');
+                style.innerHTML = `
+                  /* Estilos tipográficos adicionais */
+                  .questao-container {
+                    font-feature-settings: "kern", "liga", "clig", "calt";
+                  }
+                `;
+                iframeWindow.document.head.appendChild(style);
+              }
+              setIsIframeReady(true);
+            };
+            doc.head.appendChild(customPaged);
+          };
+          doc.head.appendChild(pagedPolyfill);
+        }, 100);
+      }
     };
 
     iframe.addEventListener('load', handleLoad);
@@ -176,7 +402,7 @@ export function Preview({ documento }: PreviewProps) {
     return () => {
       iframe.removeEventListener('load', handleLoad);
     };
-  }, [renderKey]);
+  }, [renderKey, documento]);
 
   useEffect(() => {
     if (isIframeReady && documento && iframeRef.current) {
@@ -188,19 +414,27 @@ export function Preview({ documento }: PreviewProps) {
 
       if (iframeWindow && iframeDoc) {
         try {
+          // Gerar conteúdo HTML
           const contentString = ReactDOMServer.renderToString(
             <PagedPreview documento={documento} exibirGabarito={exibirGabarito} />
           );
 
           const container = iframeDoc.getElementById('paged-container');
           if (container && iframeWindow.PagedPolyfill) {
-            // Renderizar com paged.js
-            iframeWindow.PagedPolyfill.render(contentString, container)
+            // Pré-processar conteúdo para otimizar quebras
+            const processedContent = preprocessContent(contentString, documento.tipo);
+            
+            // Renderizar com paged.js aprimorado
+            iframeWindow.PagedPolyfill.render(processedContent, container)
               .then(() => {
+                // Pós-processar após renderização
+                postProcessRendering(iframeDoc);
                 setIsRendering(false);
               })
               .catch((error: any) => {
                 console.error('Erro na renderização:', error);
+                // Fallback para renderização básica
+                container.innerHTML = processedContent;
                 setIsRendering(false);
               });
           }
@@ -218,6 +452,62 @@ export function Preview({ documento }: PreviewProps) {
       setIsRendering(false);
     }
   }, [documento, exibirGabarito, isIframeReady]);
+
+  // Função para pré-processar conteúdo antes da renderização
+  const preprocessContent = (content: string, tipoDocumento: string): string => {
+    let processed = content;
+    
+    // Adicionar classes de controle baseadas no tipo
+    if (tipoDocumento === 'simulado') {
+      processed = processed.replace(
+        /class="document-content"/g,
+        'class="document-content simulado-content"'
+      );
+    } else {
+      processed = processed.replace(
+        /class="document-content"/g,
+        'class="document-content prova-content"'
+      );
+    }
+    
+    // Adicionar atributos de controle de quebra
+    processed = processed.replace(
+      /class="questao-container"/g,
+      'class="questao-container break-inside-avoid"'
+    );
+    
+    // Marcar questões longas baseado no conteúdo
+    processed = processed.replace(
+      /<div class="questao-container[^"]*"[^>]*>([\s\S]*?)<\/div>/g,
+      (match, content) => {
+        const wordCount = content.replace(/<[^>]*>/g, '').split(/\s+/).length;
+        if (wordCount > 100) {
+          return match.replace('questao-container', 'questao-container questao-longa');
+        }
+        return match;
+      }
+    );
+    
+    return processed;
+  };
+
+  // Função para pós-processar após renderização
+  const postProcessRendering = (doc: Document): void => {
+    // Otimizar quebras de alternativas em questões longas
+    const questoesLongas = doc.querySelectorAll('.questao-longa');
+    questoesLongas.forEach((questao) => {
+      const alternativas = questao.querySelector('.alternativas-container');
+      if (alternativas && alternativas.children.length > 4) {
+        alternativas.classList.add('allow-break');
+      }
+    });
+    
+    // Ajustar espaçamento final
+    const pages = doc.querySelectorAll('.pagedjs_page');
+    pages.forEach((page, index) => {
+      page.setAttribute('data-page-number', (index + 1).toString());
+    });
+  };
 
   // Função para gerar PDF com configurações otimizadas
   const gerarPDF = () => {

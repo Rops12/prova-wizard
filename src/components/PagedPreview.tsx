@@ -65,7 +65,6 @@ export const PagedPreview: React.FC<PagedPreviewProps> = ({ documento, exibirGab
     return documento.cadernos.flatMap(c => c.questoes.map(q => ({...q, disciplina: c.disciplina})));
   }, [documento]);
 
-  let disciplinaAnterior = "";
   let contadorQuestoes = 0;
 
   return (

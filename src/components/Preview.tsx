@@ -2,16 +2,14 @@ import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Documento } from "@/types";
-import { Download, Eye, EyeOff, LoaderCircle } from "lucide-react";
+import { Download, Eye, EyeOff } from "lucide-react";
 import React, { useState, useEffect, useRef } from "react";
 import ReactDOMServer from "react-dom/server";
 import { PagedPreview } from "./PagedPreview";
-import { jsPDF } from "jspdf";
-import html2canvas from "html2canvas";
 
-// CORREÇÃO FINAL: Importando o CONTEÚDO dos arquivos de estilo com "?raw"
-import indexCss from '@/index.css?raw';
-import pagedCss from '@/styles/paged.css?raw';
+// CORREÇÃO: Usando "?url" para obter as URLs dos arquivos de estilo
+import indexCssUrl from '@/index.css?url';
+import pagedCssUrl from '@/styles/paged.css?url';
 
 // Declaração para que o TypeScript reconheça a biblioteca na window do iframe
 declare global {
@@ -31,7 +29,6 @@ export function Preview({ documento }: PreviewProps) {
   const [exibirGabarito, setExibirGabarito] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [isIframeReady, setIsIframeReady] = useState(false);
-  const [gerandoPdf, setGerandoPdf] = useState(false);
 
   useEffect(() => {
     const iframe = iframeRef.current;
@@ -50,9 +47,10 @@ export function Preview({ documento }: PreviewProps) {
             <link rel="preconnect" href="https://fonts.googleapis.com">
             <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
             <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-            <style>${indexCss}</style>
-            <style>${pagedCss}</style>
+            <link rel="stylesheet" href="${indexCssUrl}">
+            <link rel="stylesheet" href="${pagedCssUrl}">
             <style>
+              /* Estilos para a interface de preview do paged.js */
               body { margin: 0; background-color: #f3f4f6; }
               .pagedjs_preview-content { overflow: visible !important; }
               .pagedjs_pages { display: flex; flex-direction: column; align-items: center; padding: 1rem 0; }
@@ -112,40 +110,11 @@ export function Preview({ documento }: PreviewProps) {
     }
   }, [documento, exibirGabarito, isIframeReady]);
 
-  const gerarPDF = async () => {
-    const iframe = iframeRef.current;
-    if (!iframe?.contentDocument) return;
-
-    setGerandoPdf(true);
-
-    const pages = iframe.contentDocument.querySelectorAll<HTMLElement>('.pagedjs_page');
-    if (pages.length === 0) {
-        setGerandoPdf(false);
-        return;
+  // CORREÇÃO: Simplificado para usar a função print nativa (interceptada pelo paged.js)
+  const gerarPDF = () => {
+    if (iframeRef.current?.contentWindow) {
+      iframeRef.current.contentWindow.print();
     }
-
-    const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-    const A4_WIDTH_MM = 210;
-    const A4_HEIGHT_MM = 297;
-
-    for (let i = 0; i < pages.length; i++) {
-        const page = pages[i];
-        const originalShadow = page.style.boxShadow;
-        page.style.boxShadow = 'none';
-
-        const canvas = await html2canvas(page, { scale: 2, useCORS: true });
-
-        page.style.boxShadow = originalShadow;
-
-        const imgData = canvas.toDataURL('image/png');
-        if (i > 0) pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, 0, A4_WIDTH_MM, A4_HEIGHT_MM, undefined, 'FAST');
-    }
-
-    const nomeDoDocumento = documento?.tipo === 'prova' ? (documento.metadados.titulo || documento.template.nome) : documento?.nome;
-    pdf.save(`${nomeDoDocumento || 'documento'}.pdf`);
-
-    setGerandoPdf(false);
   };
 
   const todasQuestoes = React.useMemo(() => {
@@ -167,9 +136,9 @@ export function Preview({ documento }: PreviewProps) {
                 {exibirGabarito ? <EyeOff className="h-3 w-3 mr-1" /> : <Eye className="h-3 w-3 mr-1" />}
                 {exibirGabarito ? "Ocultar Gabarito" : "Mostrar Gabarito"}
               </Button>
-              <Button size="sm" onClick={gerarPDF} disabled={gerandoPdf} className="text-xs w-28">
-                {gerandoPdf ? (<LoaderCircle className="h-3 w-3 animate-spin" />) : (<Download className="h-3 w-3 mr-1" />)}
-                {gerandoPdf ? "Gerando..." : "Gerar PDF"}
+              <Button size="sm" onClick={gerarPDF} className="text-xs">
+                <Download className="h-3 w-3 mr-1" />
+                Gerar PDF
               </Button>
             </div>
           )}

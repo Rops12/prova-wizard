@@ -9,9 +9,9 @@ import { PagedPreview } from "./PagedPreview";
 import { jsPDF } from "jspdf";
 import html2canvas from "html2canvas";
 
-// CORREÇÃO: Voltamos a usar "?url" para obter os caminhos dos arquivos CSS
-import indexCssUrl from '@/index.css?url';
-import pagedCssUrl from '@/styles/paged.css?url';
+// CORREÇÃO FINAL: Importando o CONTEÚDO dos arquivos de estilo com "?raw"
+import indexCss from '@/index.css?raw';
+import pagedCss from '@/styles/paged.css?raw';
 
 // Declaração para que o TypeScript reconheça a biblioteca na window do iframe
 declare global {
@@ -33,7 +33,6 @@ export function Preview({ documento }: PreviewProps) {
   const [isIframeReady, setIsIframeReady] = useState(false);
   const [gerandoPdf, setGerandoPdf] = useState(false);
 
-  // Efeito para configurar o iframe quando o componente é montado
   useEffect(() => {
     const iframe = iframeRef.current;
     if (!iframe) return;
@@ -42,7 +41,6 @@ export function Preview({ documento }: PreviewProps) {
       const doc = iframe.contentDocument;
       if (!doc) return;
 
-      // Prepara o HTML base dentro do iframe, usando <link> com as URLs corretas
       doc.open();
       doc.write(`
         <!DOCTYPE html>
@@ -52,8 +50,8 @@ export function Preview({ documento }: PreviewProps) {
             <link rel="preconnect" href="https://fonts.googleapis.com">
             <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
             <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-            <link rel="stylesheet" href="${indexCssUrl}">
-            <link rel="stylesheet" href="${pagedCssUrl}">
+            <style>${indexCss}</style>
+            <style>${pagedCss}</style>
             <style>
               body { margin: 0; background-color: #f3f4f6; }
               .pagedjs_preview-content { overflow: visible !important; }
@@ -68,7 +66,6 @@ export function Preview({ documento }: PreviewProps) {
       `);
       doc.close();
 
-      // Carrega os scripts do paged.js dentro do iframe
       const pagedPolyfill = doc.createElement('script');
       pagedPolyfill.src = 'https://unpkg.com/pagedjs/dist/paged.polyfill.js';
       pagedPolyfill.onload = () => {
@@ -90,7 +87,6 @@ export function Preview({ documento }: PreviewProps) {
     };
   }, []);
 
-  // Efeito para renderizar o conteúdo da prova dentro do iframe
   useEffect(() => {
     if (isIframeReady && documento && iframeRef.current) {
       const iframe = iframeRef.current;
@@ -116,7 +112,6 @@ export function Preview({ documento }: PreviewProps) {
     }
   }, [documento, exibirGabarito, isIframeReady]);
 
-  // Função para gerar PDF diretamente
   const gerarPDF = async () => {
     const iframe = iframeRef.current;
     if (!iframe?.contentDocument) return;
@@ -125,45 +120,30 @@ export function Preview({ documento }: PreviewProps) {
 
     const pages = iframe.contentDocument.querySelectorAll<HTMLElement>('.pagedjs_page');
     if (pages.length === 0) {
-        console.error("Nenhuma página renderizada encontrada para gerar o PDF.");
         setGerandoPdf(false);
         return;
     }
 
-    const pdf = new jsPDF({
-        orientation: "portrait",
-        unit: "mm",
-        format: "a4"
-    });
-
+    const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
     const A4_WIDTH_MM = 210;
     const A4_HEIGHT_MM = 297;
 
     for (let i = 0; i < pages.length; i++) {
         const page = pages[i];
-
         const originalShadow = page.style.boxShadow;
         page.style.boxShadow = 'none';
 
-        const canvas = await html2canvas(page, {
-            scale: 2,
-            useCORS: true
-        });
+        const canvas = await html2canvas(page, { scale: 2, useCORS: true });
 
         page.style.boxShadow = originalShadow;
 
         const imgData = canvas.toDataURL('image/png');
-
-        if (i > 0) {
-            pdf.addPage();
-        }
-
+        if (i > 0) pdf.addPage();
         pdf.addImage(imgData, 'PNG', 0, 0, A4_WIDTH_MM, A4_HEIGHT_MM, undefined, 'FAST');
     }
 
     const nomeDoDocumento = documento?.tipo === 'prova' ? (documento.metadados.titulo || documento.template.nome) : documento?.nome;
-    const nomeArquivo = `${nomeDoDocumento || 'documento'}.pdf`;
-    pdf.save(nomeArquivo);
+    pdf.save(`${nomeDoDocumento || 'documento'}.pdf`);
 
     setGerandoPdf(false);
   };
@@ -188,11 +168,7 @@ export function Preview({ documento }: PreviewProps) {
                 {exibirGabarito ? "Ocultar Gabarito" : "Mostrar Gabarito"}
               </Button>
               <Button size="sm" onClick={gerarPDF} disabled={gerandoPdf} className="text-xs w-28">
-                {gerandoPdf ? (
-                    <LoaderCircle className="h-3 w-3 animate-spin" />
-                ) : (
-                    <Download className="h-3 w-3 mr-1" />
-                )}
+                {gerandoPdf ? (<LoaderCircle className="h-3 w-3 animate-spin" />) : (<Download className="h-3 w-3 mr-1" />)}
                 {gerandoPdf ? "Gerando..." : "Gerar PDF"}
               </Button>
             </div>
